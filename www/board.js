@@ -115,7 +115,6 @@ export class Board {
         kind: PIECES[piece],
       });
     }
-    console.log(this.pieces);
   }
 
   /**
@@ -160,9 +159,7 @@ export class Board {
    * @param {number} q
    * @param {number} r
    */
-  onClick(q, r) {
-    console.log("clicked", q, r);
-  }
+  onClick(q, r) {}
 
   /**
    * @param {HTMLCanvasElement} canvas
