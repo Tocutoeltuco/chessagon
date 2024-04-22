@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <title>chessagon</title>
+  </head>
+  <body>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        position: fixed;
+      }
+
+      #board {
+        background-color: #c69874;
+      }
+    </style>
+
+    <canvas id="board"></canvas>
+    <div id="test"></div>
+    <script type="module">
+      import init, { start } from "./pkg/chessagon.js";
+
+      init().then(() => {
+        start();
+      });
+    </script>
+  </body>
+</html>
