@@ -87,6 +87,10 @@ board.onClick = (q, r) => {
 
 setupMouse(canvas);
 
+window.visualViewport.onresize = () => {
+  board.resize();
+};
+
 const render = () => {
   board.render(canvas);
   frameRequest = requestAnimationFrame(render);
