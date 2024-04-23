@@ -216,9 +216,6 @@ export class Board {
       if (!this.isInBounds(q, r)) {
         continue;
       }
-      if (q === mouseQ && r === mouseR) {
-        continue;
-      }
 
       const [x, y] = this._getPixel(q, r);
       ctx.drawImage(this.assets.get("hex_effect_light"), x, y, size, size);

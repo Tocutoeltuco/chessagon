@@ -44,6 +44,7 @@ pub fn on_assets_ready(ctx: &mut Context) {
 pub fn on_hex_clicked(ctx: &mut Context, q: u8, r: u8) {
     if ctx.game.get_at(q, r).is_some() {
         ctx.selected = Some([q, r]);
+        highlight(&[q << 4 & 0xf0 | r & 0xf]);
         return;
     }
 
@@ -54,4 +55,5 @@ pub fn on_hex_clicked(ctx: &mut Context, q: u8, r: u8) {
     }
 
     ctx.selected = None;
+    highlight(&[]);
 }
