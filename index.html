@@ -18,12 +18,12 @@
     </style>
 
     <canvas id="board"></canvas>
-    <div id="test"></div>
     <script type="module">
-      import init, { start } from "./pkg/chessagon.js";
+      import init, { create_context } from "./pkg/chessagon.js";
+      import { main } from "./www/init.js";
 
       init().then(() => {
-        start();
+        main(create_context());
       });
     </script>
   </body>

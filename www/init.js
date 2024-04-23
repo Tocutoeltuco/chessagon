@@ -1,7 +1,9 @@
 import { AssetManager } from "./assets.js";
 import { Board } from "./board.js";
 import { setupMouse, resetMouseState } from "./mouse.js";
-import { on_assets_ready, on_hex_clicked } from "../pkg/chessagon.js";
+import { start, on_assets_ready, on_hex_clicked } from "../pkg/chessagon.js";
+
+let ctx;
 
 const assets = new AssetManager();
 const board = new Board(11, assets);
@@ -45,7 +47,7 @@ export const loadAssets = () => {
 
     assets.waitReady().then(() => {
       // Trigger event
-      on_assets_ready();
+      on_assets_ready(ctx);
     });
   });
 };
@@ -82,7 +84,7 @@ export const highlight = (pieces) => {
  * @param {number} r
  */
 board.onClick = (q, r) => {
-  on_hex_clicked(q, r);
+  on_hex_clicked(ctx, q, r);
 };
 
 setupMouse(canvas);
@@ -94,4 +96,9 @@ window.visualViewport.onresize = () => {
 const render = () => {
   board.render(canvas);
   frameRequest = requestAnimationFrame(render);
+};
+
+export const main = (context) => {
+  ctx = context;
+  start(ctx);
 };
