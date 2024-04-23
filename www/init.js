@@ -10,26 +10,12 @@ const board = new Board(11, assets);
 const canvas = document.getElementById("board");
 let frameRequest;
 
-const colors = [
-  {
-    normal: "hsl(0, 0%, 0%)",
-    light: "hsl(0, 0%, 15%)",
-    hover: "hsl(0, 0%, 20%)",
-    click: "hsl(0, 0%, 25%)",
-  },
-  {
-    normal: "hsl(0, 0%, 35%)",
-    light: "hsl(0, 0%, 45%)",
-    hover: "hsl(0, 0%, 50%)",
-    click: "hsl(0, 0%, 60%)",
-  },
-  {
-    normal: "hsl(0, 0%, 70%)",
-    light: "hsl(0, 0%, 85%)",
-    hover: "hsl(0, 0%, 90%)",
-    click: "hsl(0, 0%, 100%)",
-  },
-];
+const colors = ["#d18b47", "#e8ab6f", "#ffce9e"];
+const effects = {
+  light: "rgba(255, 255, 0, 0.35)",
+  hover: "rgba(255, 255, 255, 0.4)",
+  click: "rgba(255, 255, 255, 0.5)",
+};
 
 export const loadAssets = () => {
   const pieces = ["k", "q", "r", "b", "n", "p"];
@@ -40,9 +26,11 @@ export const loadAssets = () => {
 
   assets.fetch("./assets/hexagon.svg").then((content) => {
     for (let i = 0; i < colors.length; i++) {
-      for (const [name, color] of Object.entries(colors[i])) {
-        assets.create(`hex_${name}_${i}`, content.replace(/#000000/g, color));
-      }
+      assets.create(`hex_${i}`, content.replace(/#000000/g, colors[i]));
+    }
+
+    for (const [name, color] of Object.entries(effects)) {
+      assets.create(`hex_effect_${name}`, content.replace(/#000000/g, color));
     }
 
     assets.waitReady().then(() => {

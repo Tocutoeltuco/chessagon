@@ -142,6 +142,9 @@ export class Board {
     if (q < 0 || r < 0) {
       return false;
     }
+    if (q >= this.size || r >= this.size) {
+      return false;
+    }
     if (r < Math.floor(this.size / 2) - q) {
       // Top left corner is out of bounds.
       // We are in a hexagon.
@@ -184,7 +187,6 @@ export class Board {
     const size = this.hexSize * 2;
 
     const mouse = getMouseState();
-    const mouseVariant = mouse.state === 0 ? "hover" : "click";
     const [mouseQ, mouseR] = this._getHex(mouse.pos.x, mouse.pos.y);
 
     if (mouse.state === 2) {
@@ -204,21 +206,8 @@ export class Board {
 
         const [x, y] = this._getPixel(q, r);
         const color = (q + r * 2 + 1) % 3;
-        let variant;
 
-        if (q === mouseQ && r === mouseR) {
-          variant = mouseVariant;
-        } else {
-          variant = "normal";
-        }
-
-        ctx.drawImage(
-          this.assets.get(`hex_${variant}_${color}`),
-          x,
-          y,
-          size,
-          size,
-        );
+        ctx.drawImage(this.assets.get(`hex_${color}`), x, y, size, size);
       }
     }
 
@@ -232,9 +221,7 @@ export class Board {
       }
 
       const [x, y] = this._getPixel(q, r);
-      const color = (q + r * 2 + 1) % 3;
-
-      ctx.drawImage(this.assets.get(`hex_light_${color}`), x, y, size, size);
+      ctx.drawImage(this.assets.get("hex_effect_light"), x, y, size, size);
     }
 
     const pSize = size * 0.75;
@@ -250,6 +237,18 @@ export class Board {
       const asset = this.assets.get(`./assets/piece_${piece.kind}${light}.svg`);
 
       ctx.drawImage(asset, offset + x, offset + y, pSize, pSize);
+    }
+
+    if (this.isInBounds(mouseQ, mouseR)) {
+      let effect;
+      if (mouse.state == 0) {
+        effect = "hex_effect_hover";
+      } else {
+        effect = "hex_effect_click";
+      }
+
+      const [x, y] = this._getPixel(mouseQ, mouseR);
+      ctx.drawImage(this.assets.get(effect), x, y, size, size);
     }
   }
 }
