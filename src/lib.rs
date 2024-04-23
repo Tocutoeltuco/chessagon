@@ -1,4 +1,6 @@
+mod directions;
 mod game;
+mod piece;
 
 use game::Game;
 use wasm_bindgen::prelude::*;
@@ -45,12 +47,9 @@ pub fn on_hex_clicked(ctx: &mut Context, q: u8, r: u8) {
     if let Some(piece) = ctx.game.get_at(q, r) {
         ctx.selected = Some((q, r));
 
-        let moves: Vec<u8> = ctx
-            .game
-            .available_moves(piece)
-            .iter()
-            .map(|(q, r)| q << 4 & 0xf0 | r & 0xf)
-            .collect();
+        let mut moves = ctx.game.available_moves(piece);
+        moves.push((piece.q, piece.r));
+        let moves: Vec<u8> = moves.iter().map(|(q, r)| q << 4 & 0xf0 | r & 0xf).collect();
         highlight(moves.as_slice());
         return;
     }
