@@ -17,7 +17,7 @@ extern "C" {
 #[wasm_bindgen]
 pub struct Context {
     game: Game,
-    selected: Option<[u8; 2]>,
+    selected: Option<(u8, u8)>,
 }
 
 #[wasm_bindgen]
@@ -42,14 +42,21 @@ pub fn on_assets_ready(ctx: &mut Context) {
 
 #[wasm_bindgen]
 pub fn on_hex_clicked(ctx: &mut Context, q: u8, r: u8) {
-    if ctx.game.get_at(q, r).is_some() {
-        ctx.selected = Some([q, r]);
-        highlight(&[q << 4 & 0xf0 | r & 0xf]);
+    if let Some(piece) = ctx.game.get_at(q, r) {
+        ctx.selected = Some((q, r));
+
+        let moves: Vec<u8> = ctx
+            .game
+            .available_moves(piece)
+            .iter()
+            .map(|(q, r)| q << 4 & 0xf0 | r & 0xf)
+            .collect();
+        highlight(moves.as_slice());
         return;
     }
 
     if let Some(prev) = ctx.selected {
-        if let Some(piece) = ctx.game.get_at(prev[0], prev[1]) {
+        if let Some(piece) = ctx.game.get_at_mut(prev.0, prev.1) {
             movePieces(&[piece.movement(q, r)]);
         }
     }
