@@ -54,9 +54,9 @@ pub fn on_hex_clicked(ctx: &mut Context, q: u8, r: u8) {
         return;
     }
 
-    if let Some(prev) = ctx.selected {
-        if let Some(piece) = ctx.game.get_at_mut(prev.0, prev.1) {
-            movePieces(&[piece.movement(q, r)]);
+    if let Some(pos) = ctx.selected {
+        if let Some(packet) = ctx.game.move_piece(pos, (q, r)) {
+            movePieces(packet.as_slice());
         }
     }
 

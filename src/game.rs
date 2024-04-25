@@ -1,5 +1,5 @@
 use crate::{
-    directions::DirectionIterator,
+    directions::MovementIterator,
     piece::{Piece, PieceKind},
 };
 
@@ -72,43 +72,31 @@ impl Game {
             .find(|piece| piece.q == q && piece.r == r)
     }
 
+    pub fn can_move(&self, piece: &Piece, q: u8, r: u8) -> bool {
+        MovementIterator::new(&self.pieces, piece.available().iter_mut(), piece)
+            .any(|pos| pos.0 == q && pos.1 == r)
+    }
+
     pub fn available_moves(&self, piece: &Piece) -> Vec<(u8, u8)> {
-        let mut moves: Vec<(u8, u8)> = vec![];
-        let is_pawn = piece.kind == PieceKind::Pawn;
+        MovementIterator::new(&self.pieces, piece.available().iter_mut(), piece).collect()
+    }
 
-        for dir in piece.available().iter_mut() {
-            for pos in dir {
-                if let Some(other) = self.get_at(pos.0, pos.1) {
-                    let capture = other.light != piece.light;
+    pub fn move_piece(&mut self, from: (u8, u8), to: (u8, u8)) -> Option<Vec<u16>> {
+        let piece = self.get_at(from.0, from.1)?;
 
-                    if capture && !is_pawn {
-                        moves.push((pos.0, pos.1));
-                    }
-                    break;
-                } else {
-                    moves.push((pos.0, pos.1));
-                }
-            }
+        if !self.can_move(piece, to.0, to.1) {
+            return None;
         }
 
-        if is_pawn {
-            // Check if we can capture
-            let direction = if piece.light { 1 } else { -1 };
-
-            for mut dir in [
-                // Left and right "diagonals"
-                DirectionIterator::new(piece.q, piece.r, (-direction, 0, 1)),
-                DirectionIterator::new(piece.q, piece.r, (direction, -1, 1)),
-            ] {
-                let pos = dir.next().unwrap();
-                if let Some(other) = self.get_at(pos.0, pos.1) {
-                    if other.light != piece.light {
-                        moves.push((pos.0, pos.1));
-                    }
-                }
-            }
+        let idx = piece.idx as usize;
+        let mut packet = vec![];
+        if let Some(other) = self.get_at_mut(to.0, to.1) {
+            packet.push(other.movement(0, 0));
         }
 
-        moves
+        let piece = self.pieces.get_mut(idx).unwrap();
+        packet.push(piece.movement(to.0, to.1));
+
+        Some(packet)
     }
 }

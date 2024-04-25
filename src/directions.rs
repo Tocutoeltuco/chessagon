@@ -1,3 +1,6 @@
+use crate::piece::{Piece, PieceKind};
+use core::slice::IterMut;
+
 pub const KING: &[(i8, i8, u8)] = &[
     (-1, -1, 1),
     (-1, 0, 1),
@@ -118,5 +121,100 @@ impl Iterator for DirectionIterator {
         self.r = r as u8;
 
         Some((self.q, self.r))
+    }
+}
+
+pub struct MovementIterator<'a> {
+    pieces: &'a Vec<Piece>,
+    directions: IterMut<'a, DirectionIterator>,
+    current: Option<&'a mut DirectionIterator>,
+    pawn: bool,
+    light: bool,
+
+    _extra_dirs: Vec<DirectionIterator>,
+    _extra_idx: usize,
+}
+
+impl<'a> MovementIterator<'a> {
+    pub fn new(
+        pieces: &'a Vec<Piece>,
+        directions: IterMut<'a, DirectionIterator>,
+        piece: &Piece,
+    ) -> Self {
+        let pawn = piece.kind == PieceKind::Pawn;
+
+        let mut extra = vec![];
+        if pawn {
+            let direction = if piece.light { -1 } else { 1 };
+            extra.push(DirectionIterator::new(piece.q, piece.r, (direction, 0, 1)));
+            extra.push(DirectionIterator::new(
+                piece.q,
+                piece.r,
+                (-direction, direction, 1),
+            ));
+        }
+
+        MovementIterator {
+            pieces,
+            directions,
+            current: None,
+            pawn,
+            light: piece.light,
+
+            _extra_dirs: extra,
+            _extra_idx: 0,
+        }
+    }
+
+    fn get_at(&self, q: u8, r: u8) -> Option<&Piece> {
+        self.pieces
+            .iter()
+            .find(|piece| piece.q == q && piece.r == r)
+    }
+
+    fn get_extra(&mut self) -> Option<(u8, u8)> {
+        loop {
+            let dir = self._extra_dirs.get_mut(self._extra_idx)?;
+            self._extra_idx += 1;
+
+            let pos = dir.next()?;
+
+            if let Some(piece) = self.get_at(pos.0, pos.1) {
+                if piece.light != self.light {
+                    return Some(pos);
+                }
+            }
+        }
+    }
+}
+
+impl<'a> Iterator for MovementIterator<'a> {
+    type Item = (u8, u8);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(pos) = self.get_extra() {
+            return Some(pos);
+        }
+
+        loop {
+            let dir = match self.current.take() {
+                Some(dir) => dir,
+                None => self.directions.next()?,
+            };
+            let pos = dir.next();
+            if pos.is_none() {
+                continue;
+            }
+            let pos = pos.unwrap();
+
+            if let Some(other) = self.get_at(pos.0, pos.1) {
+                if self.pawn || other.light == self.light {
+                    continue;
+                }
+            }
+
+            self.current = Some(dir);
+            return Some(pos);
+        }
     }
 }
