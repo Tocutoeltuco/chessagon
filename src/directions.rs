@@ -246,8 +246,10 @@ impl<'a> Iterator for MovementIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(pos) = self.extra.next() {
-            if self.get_at(pos.0, pos.1).is_some() {
-                return Some(pos);
+            if let Some(piece) = self.get_at(pos.0, pos.1) {
+                if piece.light != self.light {
+                    return Some(pos);
+                }
             }
         }
 
