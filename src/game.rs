@@ -1,11 +1,20 @@
 use crate::{
-    directions::MovementIterator,
+    directions::{DirectionIterator, MovementIterator},
     piece::{Piece, PieceKind},
 };
 
 #[derive(Debug)]
 pub struct Game {
     pub pieces: Vec<Piece>,
+}
+
+macro_rules! moves_iter {
+    ($self: expr, $piece: expr) => {
+        MovementIterator::new(&$self.pieces, $piece).filter(|pos| {
+            let is_king = $piece.kind == PieceKind::King;
+            !is_king || !$self.is_threatened(pos.0, pos.1, $piece.light)
+        })
+    };
 }
 
 macro_rules! add_piece {
@@ -72,13 +81,38 @@ impl Game {
             .find(|piece| piece.q == q && piece.r == r)
     }
 
+    pub fn is_threatened(&self, q: u8, r: u8, threatened_light: bool) -> bool {
+        for pos in MovementIterator::threatened(&self.pieces, threatened_light, q, r) {
+            let piece = self.get_at(pos.0, pos.1).unwrap();
+            if self.can_capture(piece, q, r, pos.2) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn can_capture(&self, piece: &Piece, q: u8, r: u8, dir: (i8, i8, u8)) -> bool {
+        if piece.kind == PieceKind::Pawn {
+            // Normal pawn moves (piece.available()) can't capture.
+            return DirectionIterator::pawn_capture(piece.q, piece.r, piece.light)
+                .any(|pos| pos.0 == q && pos.1 == r);
+        }
+
+        // Only check if the piece can move in the opposite direction
+        // in which it was discovered.
+        piece.available().directions.iter().any(|other| {
+            let opposite = other.0 == -dir.0 && other.1 == -dir.1;
+            let count = other.2 == 0 || other.2 >= dir.2;
+            opposite && count
+        })
+    }
+
     pub fn can_move(&self, piece: &Piece, q: u8, r: u8) -> bool {
-        MovementIterator::new(&self.pieces, piece.available().iter_mut(), piece)
-            .any(|pos| pos.0 == q && pos.1 == r)
+        moves_iter!(self, piece).any(|pos| pos.0 == q && pos.1 == r)
     }
 
     pub fn available_moves(&self, piece: &Piece) -> Vec<(u8, u8)> {
-        MovementIterator::new(&self.pieces, piece.available().iter_mut(), piece).collect()
+        moves_iter!(self, piece).map(|pos| (pos.0, pos.1)).collect()
     }
 
     pub fn move_piece(&mut self, from: (u8, u8), to: (u8, u8)) -> Option<Vec<u16>> {

@@ -1,5 +1,4 @@
 use crate::piece::{Piece, PieceKind};
-use core::slice::IterMut;
 
 pub const KING: &[(i8, i8, u8)] = &[
     (-1, -1, 1),
@@ -59,6 +58,33 @@ pub const KNIGHT: &[(i8, i8, u8)] = &[
     (1, -3, 1),
     (-1, -2, 1),
 ];
+// Directions to check for pieces during threatening check
+pub const THREATEN_CHECK: &[(i8, i8, u8)] = &[
+    (-1, -1, 0),
+    (-1, 0, 0),
+    (-1, 1, 0),
+    (0, -1, 0),
+    (0, 1, 0),
+    (1, -1, 0),
+    (1, 0, 0),
+    (1, 1, 0),
+    (-2, 1, 0),
+    (-1, 2, 0),
+    (1, -2, 0),
+    (2, -1, 0),
+    (-2, -1, 1),
+    (-3, 1, 1),
+    (-3, 2, 1),
+    (-2, 3, 1),
+    (-1, 3, 1),
+    (1, 2, 1),
+    (2, 1, 1),
+    (3, -1, 1),
+    (3, -2, 1),
+    (2, -3, 1),
+    (1, -3, 1),
+    (-1, -2, 1),
+];
 
 fn is_in_bounds(q: i8, r: i8) -> bool {
     if q < 0 || r < 0 {
@@ -81,34 +107,27 @@ fn is_in_bounds(q: i8, r: i8) -> bool {
     true
 }
 
-pub struct DirectionIterator {
+struct SingleDirectionIterator {
     q: u8,
     r: u8,
     dir: (i8, i8, u8),
-    count: u8,
+    i: u8,
 }
 
-impl DirectionIterator {
+impl SingleDirectionIterator {
     pub fn new(q: u8, r: u8, dir: (i8, i8, u8)) -> Self {
-        DirectionIterator {
-            q,
-            r,
-            dir,
-            count: 0,
-        }
+        SingleDirectionIterator { q, r, dir, i: 0 }
     }
 }
 
-impl Iterator for DirectionIterator {
+impl Iterator for SingleDirectionIterator {
     type Item = (u8, u8);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.dir.2 != 0 {
-            if self.count >= self.dir.2 {
-                return None;
-            }
-            self.count += 1;
+        if self.dir.2 != 0 && self.i >= self.dir.2 {
+            return None;
         }
+        self.i += 1;
 
         let q = self.q as i8 + self.dir.0;
         let r = self.r as i8 + self.dir.1;
@@ -124,45 +143,94 @@ impl Iterator for DirectionIterator {
     }
 }
 
+pub struct DirectionIterator {
+    q: u8,
+    r: u8,
+    pub directions: Vec<(i8, i8, u8)>,
+    idx: usize,
+    current: Option<SingleDirectionIterator>,
+}
+
+impl DirectionIterator {
+    pub fn new(q: u8, r: u8, directions: Vec<(i8, i8, u8)>) -> Self {
+        let mut obj = DirectionIterator {
+            q,
+            r,
+            directions,
+            idx: 0,
+            current: None,
+        };
+        obj.next_dir();
+        obj
+    }
+
+    pub fn pawn_capture(q: u8, r: u8, light: bool) -> Self {
+        let dir = if light { -1 } else { 1 };
+        DirectionIterator::new(q, r, vec![(dir, 0, 1), (-dir, dir, 1)])
+    }
+
+    pub fn next_dir(&mut self) {
+        self.current = self
+            .directions
+            .get(self.idx)
+            .map(|dir| SingleDirectionIterator::new(self.q, self.r, *dir));
+        self.idx += 1;
+    }
+}
+
+impl Iterator for DirectionIterator {
+    type Item = (u8, u8, (i8, i8, u8));
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let mut iter = self.current.take()?;
+            if let Some(pos) = iter.next() {
+                let dir = (iter.dir.0, iter.dir.1, iter.i);
+                self.current = Some(iter);
+                return Some((pos.0, pos.1, dir));
+            }
+
+            self.next_dir();
+        }
+    }
+}
+
 pub struct MovementIterator<'a> {
     pieces: &'a Vec<Piece>,
-    directions: IterMut<'a, DirectionIterator>,
-    current: Option<&'a mut DirectionIterator>,
+    directions: DirectionIterator,
     pawn: bool,
     light: bool,
-
-    _extra_dirs: Vec<DirectionIterator>,
-    _extra_idx: usize,
+    only_pieces: bool,
+    extra: DirectionIterator,
 }
 
 impl<'a> MovementIterator<'a> {
-    pub fn new(
-        pieces: &'a Vec<Piece>,
-        directions: IterMut<'a, DirectionIterator>,
-        piece: &Piece,
-    ) -> Self {
+    pub fn new(pieces: &'a Vec<Piece>, piece: &Piece) -> Self {
         let pawn = piece.kind == PieceKind::Pawn;
-
-        let mut extra = vec![];
-        if pawn {
-            let direction = if piece.light { -1 } else { 1 };
-            extra.push(DirectionIterator::new(piece.q, piece.r, (direction, 0, 1)));
-            extra.push(DirectionIterator::new(
-                piece.q,
-                piece.r,
-                (-direction, direction, 1),
-            ));
-        }
+        let extra = if pawn {
+            DirectionIterator::pawn_capture(piece.q, piece.r, piece.light)
+        } else {
+            DirectionIterator::new(0, 0, vec![])
+        };
 
         MovementIterator {
             pieces,
-            directions,
-            current: None,
+            directions: piece.available(),
             pawn,
             light: piece.light,
+            only_pieces: false,
+            extra,
+        }
+    }
 
-            _extra_dirs: extra,
-            _extra_idx: 0,
+    pub fn threatened(pieces: &'a Vec<Piece>, light: bool, q: u8, r: u8) -> Self {
+        MovementIterator {
+            pieces,
+            directions: DirectionIterator::new(q, r, Vec::from(THREATEN_CHECK)),
+            pawn: false,
+            light,
+            only_pieces: true,
+            extra: DirectionIterator::new(0, 0, vec![]),
         }
     }
 
@@ -171,49 +239,37 @@ impl<'a> MovementIterator<'a> {
             .iter()
             .find(|piece| piece.q == q && piece.r == r)
     }
-
-    fn get_extra(&mut self) -> Option<(u8, u8)> {
-        loop {
-            let dir = self._extra_dirs.get_mut(self._extra_idx)?;
-            self._extra_idx += 1;
-
-            let pos = dir.next()?;
-
-            if let Some(piece) = self.get_at(pos.0, pos.1) {
-                if piece.light != self.light {
-                    return Some(pos);
-                }
-            }
-        }
-    }
 }
 
 impl<'a> Iterator for MovementIterator<'a> {
-    type Item = (u8, u8);
+    type Item = (u8, u8, (i8, i8, u8));
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(pos) = self.get_extra() {
-            return Some(pos);
+        while let Some(pos) = self.extra.next() {
+            if self.get_at(pos.0, pos.1).is_some() {
+                return Some(pos);
+            }
+        }
+
+        if self.pawn && self.only_pieces {
+            // Already checked capture moves (extra)
+            return None;
         }
 
         loop {
-            let dir = match self.current.take() {
-                Some(dir) => dir,
-                None => self.directions.next()?,
-            };
-            let pos = dir.next();
-            if pos.is_none() {
-                continue;
-            }
-            let pos = pos.unwrap();
+            let pos = self.directions.next()?;
 
             if let Some(other) = self.get_at(pos.0, pos.1) {
-                if self.pawn || other.light == self.light {
+                let same_color = other.light == self.light;
+
+                self.directions.next_dir();
+                if self.pawn || same_color {
                     continue;
                 }
+            } else if self.only_pieces {
+                continue;
             }
 
-            self.current = Some(dir);
             return Some(pos);
         }
     }

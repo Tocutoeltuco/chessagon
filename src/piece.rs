@@ -41,7 +41,7 @@ impl Piece {
         idx << 8 | q << 4 & 0xf0 | r & 0xf
     }
 
-    pub fn available(&self) -> Vec<DirectionIterator> {
+    pub fn available(&self) -> DirectionIterator {
         if self.kind == PieceKind::Pawn {
             let direction = if self.light { -1 } else { 1 };
             let repeat = match (self.light, self.q, self.r) {
@@ -54,11 +54,7 @@ impl Piece {
                 _ => 1,
             };
 
-            return vec![DirectionIterator::new(
-                self.q,
-                self.r,
-                (0, direction, repeat),
-            )];
+            return DirectionIterator::new(self.q, self.r, vec![(0, direction, repeat)]);
         }
 
         let container = match self.kind {
@@ -70,9 +66,6 @@ impl Piece {
             PieceKind::Pawn => panic!("shouldnt be here"),
         };
 
-        container
-            .iter()
-            .map(|dir| DirectionIterator::new(self.q, self.r, *dir))
-            .collect()
+        DirectionIterator::new(self.q, self.r, Vec::from(container))
     }
 }
