@@ -1,5 +1,5 @@
-import { AssetManager } from "./assets.js";
-import { getMouseState } from "./mouse.js";
+const { AssetManager } = require("./assets.js");
+const { getMouseState } = require("./mouse.js");
 
 const SQRT = Math.sqrt(3);
 const PIECES = ["k", "q", "r", "b", "n", "p"];

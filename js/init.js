@@ -1,7 +1,7 @@
-import { AssetManager } from "./assets.js";
-import { Board } from "./board.js";
-import { setupMouse, resetMouseState } from "./mouse.js";
-import { start, on_assets_ready, on_hex_clicked } from "../pkg/chessagon.js";
+import { AssetManager } from "./assets";
+import { Board } from "./board";
+import { setupMouse, resetMouseState } from "./mouse";
+import { start, on_assets_ready, on_hex_clicked } from "../pkg/index";
 
 let ctx;
 

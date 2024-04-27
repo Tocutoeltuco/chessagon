@@ -1,1 +1,1 @@
-export * from "../../../../www/init.js";
+export * from "../../../../js/init";
