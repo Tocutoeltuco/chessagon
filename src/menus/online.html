@@ -1,0 +1,62 @@
+<div id="menu-online" class="modal fade" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><b>Join a room</b></h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-body-secondary">
+          Entering room as
+          <span
+            class="badge rounded-pill text-bg-secondary"
+            data-name="self"
+          ></span
+          >.
+        </p>
+        <div
+          class="alert alert-danger py-2"
+          id="join-error"
+          role="alert"
+          hidden
+        >
+          That room was not found.
+        </div>
+        <div class="input-group mb-2">
+          <input
+            id="join-room"
+            type="text"
+            class="form-control"
+            placeholder="Room ID"
+          />
+          <button id="join-room-btn" class="btn btn-primary" type="button">
+            <span class="spinner-border spinner-border-sm" hidden></span>
+            Join
+          </button>
+        </div>
+        <div class="separator mb-2">or...</div>
+        <div class="row g-2">
+          <div class="col">
+            <button
+              class="btn btn-secondary w-100"
+              type="button"
+              data-bs-dismiss="modal"
+            >
+              Go back
+            </button>
+          </div>
+          <div class="col">
+            <button class="btn btn-primary w-100 continue-btn" type="button">
+              Create room
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

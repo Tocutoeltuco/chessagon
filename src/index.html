@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en-US" data-bs-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>chessagon</title>
+  </head>
+  <body>
+    <%= require("html-loader!./menus/gamemode.html").default %> <%=
+    require("html-loader!./menus/register.html").default %> <%=
+    require("html-loader!./menus/online.html").default %> <%=
+    require("html-loader!./menus/settings.html").default %>
+
+    <div class="position-fixed top-50 start-50 translate-middle">
+      <div
+        class="spinner-border"
+        style="width: 4rem; height: 4rem"
+        id="loading"
+        role="status"
+      >
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+
+    <canvas class="position-fixed top-0 start-0 invisible" id="board"></canvas>
+  </body>
+</html>

@@ -1,8 +1,11 @@
-const { AssetManager } = require("./assets.js");
-const { getMouseState } = require("./mouse.js");
+import { on_hex_clicked } from "../../pkg";
+import { AssetManager } from "./assets";
+import { getMouseState } from "./mouse";
+import { ctx } from "./state";
 
 const SQRT = Math.sqrt(3);
 const PIECES = ["k", "q", "r", "b", "n", "p"];
+const EFFECTS = ["light"];
 
 /**
  * @typedef {{"k" | "q" | "r" | "b" | "n" | "p"}} PieceType
@@ -86,14 +89,29 @@ export class Board {
 
   /**
    * Highlights a subset of hexes.
-   * @param {Uint8Array} hexes
+   * @param {Uint16Array} hexes
    */
   highlight(hexes) {
     this.highlighted = [];
     for (let i = 0; i < hexes.length; i++) {
+      const flags = hexes[i] >> 8;
+      if (flags === 0) {
+        continue;
+      }
+
       const q = (hexes[i] & 0xf0) >> 4;
       const r = hexes[i] & 0xf;
-      this.highlighted.push([q, r]);
+      if (!this.isInBounds(q, r)) {
+        continue;
+      }
+
+      const effects = [];
+      for (let j = 0; j < EFFECTS.length; j++) {
+        if (flags & (1 << j > 0)) {
+          effects.push(EFFECTS[j]);
+        }
+      }
+      this.highlighted.push([q, r, effects]);
     }
   }
 
@@ -162,7 +180,9 @@ export class Board {
    * @param {number} q
    * @param {number} r
    */
-  onClick(q, r) {}
+  onClick(q, r) {
+    on_hex_clicked(ctx, q, r);
+  }
 
   /**
    * @param {HTMLCanvasElement} canvas
@@ -212,13 +232,17 @@ export class Board {
     }
 
     for (let i = 0; i < this.highlighted.length; i++) {
-      const [q, r] = this.highlighted[i];
-      if (!this.isInBounds(q, r)) {
-        continue;
-      }
-
+      const [q, r, effects] = this.highlighted[i];
       const [x, y] = this._getPixel(q, r);
-      ctx.drawImage(this.assets.get("hex_effect_light"), x, y, size, size);
+      for (let j = 0; j < effects.length; j++) {
+        ctx.drawImage(
+          this.assets.get(`hex_effect_${effects[j]}`),
+          x,
+          y,
+          size,
+          size,
+        );
+      }
     }
 
     const pSize = size * 0.75;

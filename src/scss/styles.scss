@@ -1,0 +1,21 @@
+@import "../../node_modules/bootstrap/scss/bootstrap";
+
+.separator {
+  display: flex;
+  align-items: center;
+  text-align: center;
+}
+
+.separator::before,
+.separator::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid currentColor;
+}
+
+.separator:not(:empty)::before {
+  margin-right: 0.25em;
+}
+.separator:not(:empty)::after {
+  margin-left: 0.25em;
+}
