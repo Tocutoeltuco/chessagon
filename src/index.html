@@ -6,6 +6,8 @@
     <title>chessagon</title>
   </head>
   <body>
+    <div id="menu-events" hidden></div>
+
     <%= require("html-loader!./menus/gamemode.html").default %> <%=
     require("html-loader!./menus/register.html").default %> <%=
     require("html-loader!./menus/online.html").default %> <%=
@@ -22,6 +24,6 @@
       </div>
     </div>
 
-    <canvas class="position-fixed top-0 start-0 invisible" id="board"></canvas>
+    <canvas class="position-fixed top-0 start-0" id="board"></canvas>
   </body>
 </html>

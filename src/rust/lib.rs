@@ -9,9 +9,8 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(module = "/src/rust/glue.js")]
 extern "C" {
-    pub fn showCanvas();
-    pub fn showLoading();
-    pub fn showMenu(idx: u8);
+    pub fn setScene(idx: i8);
+    pub fn joinResponse(resp: String);
 
     pub fn setPieces(pieces: &[u16]);
     pub fn movePieces(pieces: &[u16]);
@@ -69,7 +68,7 @@ pub fn start(ctx: &mut Context) {
     setPieces(ctx.game.describe().as_slice());
     highlight(&[]);
 
-    showMenu(0);
+    setScene(0);
 }
 
 #[wasm_bindgen]
@@ -83,23 +82,23 @@ pub fn set_gamemode(ctx: &mut Context, mode: u8) {
 
     if ctx.gamemode == Gamemode::Solo {
         // Show settings
-        showMenu(3);
+        setScene(3);
     } else if ctx.gamemode == Gamemode::Online {
         // Show register
-        showMenu(1);
+        setScene(1);
     }
 }
 
 #[wasm_bindgen]
 pub fn registered(ctx: &mut Context, name: String) {
     // Show online lobby
-    showMenu(2);
+    setScene(2);
 }
 
 #[wasm_bindgen]
 pub fn create_room(ctx: &mut Context) {
     // Show settings
-    showMenu(3);
+    setScene(3);
 }
 
 #[wasm_bindgen]
@@ -107,7 +106,7 @@ pub fn join_room(ctx: &mut Context, room: String) {}
 
 #[wasm_bindgen]
 pub fn set_settings(ctx: &mut Context, timer: Option<u32>, play_light: bool) {
-    showCanvas();
+    setScene(-1);
 }
 
 #[wasm_bindgen]
@@ -120,19 +119,19 @@ pub fn on_menu_hidden(ctx: &mut Context, menu: u8) {
     // register menu
     if menu == 1 {
         // Send back to gamemode selection
-        showMenu(0);
+        setScene(0);
     // online menu
     } else if menu == 2 {
         // Send back to registration
-        showMenu(1);
+        setScene(1);
     // settings menu
     } else if menu == 3 {
         if ctx.gamemode == Gamemode::Solo {
             // Send back to gamemode selection
-            showMenu(0);
+            setScene(0);
         } else {
             // Send back to online menu
-            showMenu(2);
+            setScene(2);
         }
     }
 }

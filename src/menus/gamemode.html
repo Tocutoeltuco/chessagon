@@ -13,7 +13,7 @@
       <div class="modal-body">
         <div class="row g-2">
           <div class="col-4">
-            <a href="#" id="mode-local" class="text-decoration-none">
+            <a href="#" data-gamemode="local" class="text-decoration-none">
               <div class="card">
                 <img
                   src="../../static/assets/singleplayer.svg"
@@ -27,7 +27,7 @@
             </a>
           </div>
           <div class="col-4">
-            <a href="#" id="mode-online" class="text-decoration-none">
+            <a href="#" data-gamemode="online" class="text-decoration-none">
               <div class="card">
                 <img
                   src="../../static/assets/multiplayer.svg"
@@ -41,12 +41,7 @@
             </a>
           </div>
           <div class="col-4">
-            <a
-              href="#"
-              id="mode-bot"
-              disabled
-              class="pe-none text-decoration-none"
-            >
+            <a data-gamemode="bot" disabled class="text-decoration-none">
               <div class="card">
                 <img
                   src="../../static/assets/robot.svg"

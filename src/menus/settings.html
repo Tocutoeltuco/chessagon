@@ -13,18 +13,18 @@
       <div class="modal-body">
         <div class="mb-3">
           <label for="game-timer" class="form-label">Game timer</label>
-          <select class="form-select" id="game-timer">
+          <select class="form-select" data-sett="timer">
             <option selected value="0">Disabled</option>
             <option value="60">01:00</option>
             <option value="120">02:00</option>
             <option value="300">05:00</option>
           </select>
         </div>
-        <div class="mb-3" id="start-color-group">
+        <div class="mb-3" data-sett="start">
           <label for="start-color" class="form-label">Play as...</label>
-          <select class="form-select" id="start-color">
+          <select class="form-select">
             <option selected value="light">White</option>
-            <option value="dark">Dark</option>
+            <option value="dark">Black</option>
             <option value="random">Random</option>
           </select>
         </div>
@@ -40,7 +40,11 @@
           </button>
         </div>
         <div class="col">
-          <button class="btn btn-primary w-100 continue-btn" type="button">
+          <button
+            data-sett="continue"
+            class="btn btn-primary w-100"
+            type="button"
+          >
             Continue
           </button>
         </div>

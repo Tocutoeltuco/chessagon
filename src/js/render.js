@@ -18,12 +18,12 @@ export const show = () => {
     window.visualViewport.onresize = () => board.resize();
   }
 
-  canvas.classList.remove("invisible");
+  canvas.hidden = false;
   resetMouseState();
   frameRequest = requestAnimationFrame(render);
 };
 
 export const hide = () => {
-  canvas.classList.add("invisible");
+  canvas.hidden = true;
   cancelAnimationFrame(render);
 };

@@ -11,31 +11,33 @@
         ></button>
       </div>
       <div class="modal-body">
-        <div class="mb-3">
-          <label for="username" class="form-label">Username</label>
-          <input
-            type="text"
-            class="form-control"
-            id="username"
-            aria-describedby="username-help"
-          />
-        </div>
-        <div class="row g-2">
-          <div class="col">
-            <button
-              class="btn btn-secondary w-100"
-              type="button"
-              data-bs-dismiss="modal"
-            >
-              Go back
-            </button>
+        <form data-reg="form">
+          <div class="mb-3">
+            <label for="reg-username" class="form-label">Username</label>
+            <input
+              type="text"
+              class="form-control"
+              id="reg-username"
+              aria-describedby="username-help"
+            />
           </div>
-          <div class="col">
-            <button class="btn btn-primary w-100 continue-btn" type="button">
-              Continue
-            </button>
+          <div class="row g-2">
+            <div class="col">
+              <button
+                class="btn btn-secondary w-100"
+                type="button"
+                data-bs-dismiss="modal"
+              >
+                Go back
+              </button>
+            </div>
+            <div class="col">
+              <button class="btn btn-primary w-100" type="submit">
+                Continue
+              </button>
+            </div>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   </div>

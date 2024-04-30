@@ -21,24 +21,22 @@
         </p>
         <div
           class="alert alert-danger py-2"
-          id="join-error"
+          data-online="error"
           role="alert"
           hidden
         >
-          That room was not found.
+          <span data-online-error="not-found">That room was not found.</span>
+          <span data-online-error="timeout">Timed out. Try again.</span>
         </div>
-        <div class="input-group mb-2">
-          <input
-            id="join-room"
-            type="text"
-            class="form-control"
-            placeholder="Room ID"
-          />
-          <button id="join-room-btn" class="btn btn-primary" type="button">
-            <span class="spinner-border spinner-border-sm" hidden></span>
-            Join
-          </button>
-        </div>
+        <form data-online="join">
+          <div class="input-group mb-2">
+            <input type="text" class="form-control" placeholder="Room ID" />
+            <button class="btn btn-primary" type="submit">
+              <span class="spinner-border spinner-border-sm" hidden></span>
+              Join
+            </button>
+          </div>
+        </form>
         <div class="separator mb-2">or...</div>
         <div class="row g-2">
           <div class="col">
@@ -51,7 +49,11 @@
             </button>
           </div>
           <div class="col">
-            <button class="btn btn-primary w-100 continue-btn" type="button">
+            <button
+              data-online="create"
+              class="btn btn-primary w-100"
+              type="button"
+            >
               Create room
             </button>
           </div>
