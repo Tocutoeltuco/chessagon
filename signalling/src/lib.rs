@@ -5,10 +5,12 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use web_time::{Duration, SystemTime, UNIX_EPOCH};
 use worker::*;
 
+type IceCandidate = (String, Option<String>, Option<u16>);
+
 #[derive(Serialize, Deserialize, Clone)]
 enum Signal {
     SetSDP(String),
-    AddCandidate(String),
+    AddCandidate(IceCandidate),
     JoinRoom(String),
     ConnectAt(SystemTime),
 }
