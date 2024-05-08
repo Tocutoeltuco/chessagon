@@ -1,10 +1,12 @@
 mod directions;
 mod game;
 mod names;
+mod network;
 mod piece;
 
 use game::Game;
 use names::NameGenerator;
+use network::Client;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(module = "/src/rust/glue.js")]
@@ -53,6 +55,14 @@ pub struct Context {
     generator: NameGenerator,
 }
 
+fn reset_net() -> Client {
+    let mut net = Client::new();
+    net.set_onroom(Box::new(move |code| {
+        //
+    }));
+    net
+}
+
 #[wasm_bindgen]
 pub fn create_context() -> Context {
     Context {
@@ -99,10 +109,14 @@ pub fn registered(ctx: &mut Context, name: String) {
 pub fn create_room(ctx: &mut Context) {
     // Show settings
     setScene(3);
+
+    reset_net().start_as_host();
 }
 
 #[wasm_bindgen]
-pub fn join_room(ctx: &mut Context, room: String) {}
+pub fn join_room(ctx: &mut Context, room: String) {
+    reset_net().start_as_guest(room);
+}
 
 #[wasm_bindgen]
 pub fn set_settings(ctx: &mut Context, timer: Option<u32>, play_light: bool) {
