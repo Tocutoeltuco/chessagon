@@ -185,13 +185,11 @@ export class Board {
   }
 
   /**
-   * @param {HTMLCanvasElement} canvas
+   * @param {CanvasRenderingContext2D} ctx
    */
-  render(canvas) {
+  render(ctx) {
     if (this.resized) {
       this.resized = false;
-      canvas.width = this.width;
-      canvas.height = this.height;
 
       for (const [name, img] in Object.entries(this.assets.assets)) {
         if (name.startsWith("hex_") || name.startsWith("./assets/piece_")) {
@@ -200,9 +198,6 @@ export class Board {
         }
       }
     }
-
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const size = this.hexSize * 2;
 
