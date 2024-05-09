@@ -76,12 +76,10 @@ export const drawGraph = (ctx, x, y, title, data, opt) => {
  * @returns {number}
  */
 
-export class PeriodicData {
-  constructor(period) {
-    this.period = period;
-    this.nextPeriod = 0;
+export class GraphData {
+  constructor() {
     /**
-     * @type {Record<string, {current: number[], aggregator: aggregator}>}
+     * @type {Record<string, {period: number?, nextPeriod: number, current: number[], aggregator: aggregator?}>}
      */
     this.fields = {};
     /**
@@ -90,12 +88,44 @@ export class PeriodicData {
     this.history = {};
   }
 
-  tryFinishPeriod() {
-    const now = performance.now();
-    if (this.nextPeriod > now) return;
+  /**
+   * @param {string} name
+   * @param {number} length
+   * @param {number?} period
+   * @param {aggregator?} aggregator
+   */
+  addField(name, length, period, aggregator) {
+    this.fields[name] = {
+      current: [],
+      aggregator: aggregator,
+      period: period,
+      nextPeriod: 0,
+    };
+    this.history[name] = new Array(length).fill(0);
+  }
 
-    this.nextPeriod = now + this.period;
+  /**
+   * @param {string} field
+   * @param {number} value
+   */
+  addData(field, value) {
+    if (!this.fields[field].period) {
+      this.history[field].shift();
+      this.history[field].push(Math.floor(value));
+      return;
+    }
+
+    this.fields[field].current.push(value);
+  }
+
+  getCurrent() {
+    const now = performance.now();
+
     for (const [name, field] of Object.entries(this.fields)) {
+      if (!field.period) continue;
+      if (field.nextPeriod > now) continue;
+      field.nextPeriod = now + field.period;
+
       let value;
       if (field.current.length == 0) {
         value = 0;
@@ -110,32 +140,7 @@ export class PeriodicData {
       this.history[name].shift();
       this.history[name].push(value);
     }
-  }
 
-  /**
-   * @param {string} name
-   * @param {number} length
-   * @param {aggregator} aggregator
-   */
-  addField(name, length, aggregator) {
-    this.fields[name] = {
-      current: [],
-      aggregator: aggregator,
-    };
-    this.history[name] = new Array(length).fill(0);
-  }
-
-  /**
-   * @param {string} field
-   * @param {number} value
-   */
-  addData(field, value) {
-    this.tryFinishPeriod();
-    this.fields[field].current.push(value);
-  }
-
-  getCurrent() {
-    this.tryFinishPeriod();
     return this.history;
   }
 }

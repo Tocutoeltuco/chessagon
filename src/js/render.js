@@ -1,12 +1,12 @@
 import { resetMouseState, setupMouse } from "./mouse";
 import { board } from "./state";
-import { drawGraph, PeriodicData } from "./graph";
+import { drawGraph, GraphData } from "./graph";
 
 /**
  * @type {HTMLCanvasElement}
  */
 const canvas = document.getElementById("board");
-const graphs = new PeriodicData(1000);
+const graphs = new GraphData();
 let firstShow = false;
 let frameRequest;
 /**
@@ -22,14 +22,15 @@ canvas.height = window.innerHeight;
 
 setupMouse(canvas);
 
-graphs.addField("fps", 10, (values) => values.length);
-graphs.addField("renderTime", 10, (values) => {
+graphs.addField("fps", 10, 1000, (values) => values.length);
+graphs.addField("renderTime", 10, 500, (values) => {
   let total = 0;
   for (let i = 0; i < values.length; i++) {
     total += values[i];
   }
   return total / values.length;
 });
+graphs.addField("rtt", 10);
 
 /**
  * @param {CanvasRenderingContext2D} ctx
@@ -69,7 +70,7 @@ const drawTimer = (ctx, y, timer, baseline) => {
 };
 
 const render = () => {
-  const start = Math.floor(performance.now());
+  const start = performance.now();
   let ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -84,8 +85,9 @@ const render = () => {
   const data = graphs.getCurrent();
   drawGraph(ctx, canvas.width - 150, 20, "FPS", data.fps);
   drawGraph(ctx, canvas.width - 150, 100, "Render time (ms)", data.renderTime);
+  drawGraph(ctx, canvas.width - 150, 180, "RTT (ms)", data.rtt);
 
-  const end = Math.floor(performance.now());
+  const end = performance.now();
 
   graphs.addData("fps", 1);
   graphs.addData("renderTime", end - start);
