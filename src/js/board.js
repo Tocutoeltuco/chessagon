@@ -44,14 +44,14 @@ export class Board {
 
     // Total width is 17x hex size
     // Total height is 19x hex size
-    // Desired size is 95% width OR 90% height
+    // Desired size is 95% width OR 80% height
 
     const desiredW = (0.95 * this.width) / 17;
-    const desiredH = (0.9 * this.height) / 19;
+    const desiredH = (0.8 * this.height) / 19;
     this.hexSize = Math.min(desiredW, desiredH);
 
     this.x = (this.width - this.hexSize * 17) / 2;
-    this.y = (this.height - this.hexSize * 19) / 2;
+    this.y = (this.height - this.hexSize * 19) / 2 - 5;
 
     const middle = Math.floor(this.size / 2);
     this.y -= (SQRT / 2) * middle * this.hexSize;
