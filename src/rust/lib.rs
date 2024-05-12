@@ -13,6 +13,7 @@ use wasm_bindgen::prelude::*;
 extern "C" {
     pub fn setScene(idx: i8);
     pub fn joinResponse(resp: String);
+    pub fn addChatMessage(kind: String, name: String, content: String);
 
     pub fn setPieces(pieces: &[u16]);
     pub fn movePieces(pieces: &[u16]);
@@ -122,6 +123,9 @@ pub fn join_room(ctx: &mut Context, room: String) {
 pub fn set_settings(ctx: &mut Context, timer: Option<u32>, play_light: bool) {
     setScene(-1);
 }
+
+#[wasm_bindgen]
+pub fn send_message(ctx: &mut Context, msg: String) {}
 
 #[wasm_bindgen]
 pub fn on_menu_hidden(ctx: &mut Context, menu: u8) {
