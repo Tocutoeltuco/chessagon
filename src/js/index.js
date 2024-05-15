@@ -1,7 +1,5 @@
 import "../scss/styles.scss";
 import { assets, ctx } from "./state";
-import { new_player_name, start } from "../../pkg";
-import { setPlayerName } from "./scene";
 
 const colors = ["#d18b47", "#e8ab6f", "#ffce9e"];
 const effects = {
@@ -27,7 +25,6 @@ assets.fetch("./assets/hexagon.svg").then((content) => {
 
   assets.waitReady().then(() => {
     // Ready!
-    setPlayerName(true, new_player_name(ctx));
-    start(ctx);
+    ctx.start();
   });
 });

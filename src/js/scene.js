@@ -1,13 +1,5 @@
 import { Modal } from "bootstrap";
 import { ctx } from "./state";
-import {
-  create_room,
-  join_room,
-  on_menu_hidden,
-  registered,
-  set_gamemode,
-  set_settings,
-} from "../../pkg";
 import { hide, show } from "./render";
 
 import { menu as gamemodeMenu } from "../menus/gamemode.js";
@@ -34,7 +26,7 @@ let currentScene = LOADING;
   menu.addEventListener("hidden.bs.modal", () => {
     // Only trigger if closed by user (not by js/rust)
     if (currentScene === idx) {
-      on_menu_hidden(ctx, idx);
+      ctx.menuHidden(idx);
     }
   });
 });
@@ -89,14 +81,13 @@ menuEvt.addEventListener("chess.gamemode", (evt) => {
     idx = 2;
   }
 
-  set_gamemode(ctx, idx);
+  ctx.setGamemode(idx);
 });
 menuEvt.addEventListener("chess.register", (evt) => {
-  setPlayerName(true, evt.detail);
-  registered(ctx, evt.detail);
+  ctx.register(evt.detail);
 });
-menuEvt.addEventListener("chess.join", (evt) => join_room(ctx, evt.detail));
-menuEvt.addEventListener("chess.create", () => create_room(ctx));
+menuEvt.addEventListener("chess.join", (evt) => ctx.joinRoom(evt.detail));
+menuEvt.addEventListener("chess.create", () => ctx.createRoom());
 menuEvt.addEventListener("chess.settings", (evt) => {
-  set_settings(ctx, evt.detail.timer, evt.detail.start === "light");
+  ctx.setSettings(evt.detail.timer, evt.detail.start === "light");
 });

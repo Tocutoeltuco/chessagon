@@ -11,7 +11,7 @@ evtTarget.addEventListener("chess.gamemode", (evt) => {
 });
 
 nextBtn.addEventListener("click", () => {
-  const time = parseInt(timer.value, 10) || null;
+  const time = parseInt(timer.value, 10) || 0;
   let startColor = start.value;
 
   if (startColor === "random") {

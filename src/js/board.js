@@ -1,4 +1,3 @@
-import { on_hex_clicked } from "../../pkg";
 import { AssetManager } from "./assets";
 import { getMouseState } from "./mouse";
 import { ctx } from "./state";
@@ -181,7 +180,7 @@ export class Board {
    * @param {number} r
    */
   onClick(q, r) {
-    on_hex_clicked(ctx, q, r);
+    ctx.hexClicked(q, r);
   }
 
   /**

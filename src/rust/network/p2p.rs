@@ -9,7 +9,7 @@ use web_sys::{
     RtcPeerConnectionIceEvent, RtcSdpType, RtcSessionDescriptionInit,
 };
 
-use super::packet::Packet;
+use super::buffer::Buffer;
 
 // Sets an event on a target and forgets about the closure
 // (leaves it up to JS' GC to drop the object)
@@ -101,7 +101,7 @@ impl Connection {
         self.conn.close();
     }
 
-    pub fn send(&self, packet: Packet) {
+    pub fn send(&self, packet: Buffer) {
         // TODO: Handle error on channel.send
         let packet: Vec<u8> = packet.into();
         let _ = self.channel.send_with_u8_array(packet.as_slice());
@@ -114,7 +114,7 @@ impl Connection {
         set_event!(self.channel, handler, set_onopen);
     }
 
-    pub fn set_onmessage(&self, mut handler: Box<dyn FnMut(Packet)>) {
+    pub fn set_onmessage(&self, mut handler: Box<dyn FnMut(Buffer)>) {
         let handler: Box<dyn FnMut(_)> = Box::new(move |event: MessageEvent| {
             let data = Uint8Array::new(&event.data()).to_vec();
             handler(data.into());

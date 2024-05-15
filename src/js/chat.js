@@ -1,4 +1,3 @@
-import { send_message } from "../../pkg";
 import { ctx } from "./state";
 
 const chat = document.getElementById("chat");
@@ -22,7 +21,7 @@ inp.onkeyup = (e) => {
 inp.onkeydown = (e) => {
   if (e.code === "Enter" || e.code === "NumpadEnter") {
     if (inp.value === "") return;
-    send_message(ctx, inp.value);
+    ctx.sendMessage(inp.value);
     inp.value = "";
   }
 };

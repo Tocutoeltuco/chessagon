@@ -30,3 +30,7 @@ impl Iterator for NameGenerator {
         Some(format!("{}-{}", left, right))
     }
 }
+
+pub fn new_name() -> String {
+    NameGenerator::new().next().unwrap()
+}

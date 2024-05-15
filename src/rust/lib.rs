@@ -1,182 +1,94 @@
+mod controller;
 mod directions;
 mod game;
+mod glue;
+mod iface;
 mod names;
 mod network;
 mod piece;
+mod utils;
 
-use game::Game;
-use names::NameGenerator;
+use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+
+use glue::{Event, JsEvent};
+use iface::InterfacesManager;
 use network::Client;
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen(module = "/src/rust/glue.js")]
-extern "C" {
-    pub fn setScene(idx: i8);
-    pub fn joinResponse(resp: String);
-    pub fn addChatMessage(kind: String, name: String, content: String);
-
-    pub fn setPieces(pieces: &[u16]);
-    pub fn movePieces(pieces: &[u16]);
-    pub fn highlight(hexes: &[u16]);
+macro_rules! attach {
+    ($ctx: expr, $obj: expr) => {{
+        let mut handler = $obj;
+        $ctx.add_listener(Box::new(move |evt| {
+            handler.on_event(evt);
+        }));
+    };};
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-enum Gamemode {
-    Solo,
-    Online,
-    Bot,
-}
-
-impl From<u8> for Gamemode {
-    fn from(value: u8) -> Self {
-        match value {
-            0 => Gamemode::Solo,
-            1 => Gamemode::Online,
-            2 => Gamemode::Bot,
-            _ => panic!("invalid gamemode"),
-        }
-    }
-}
-
-impl From<Gamemode> for u8 {
-    fn from(value: Gamemode) -> u8 {
-        match value {
-            Gamemode::Solo => 0,
-            Gamemode::Online => 1,
-            Gamemode::Bot => 2,
-        }
-    }
-}
+type Handler = Box<dyn FnMut(&Event)>;
 
 #[wasm_bindgen]
+#[derive(Clone)]
 pub struct Context {
-    game: Game,
-    selected: Option<(u8, u8)>,
-    gamemode: Gamemode,
-    generator: NameGenerator,
+    handlers: Rc<RefCell<Vec<Handler>>>,
+    queue: Rc<RefCell<VecDeque<Event>>>,
 }
 
-fn reset_net() -> Client {
-    let mut net = Client::new();
-    net.set_onroom(Box::new(move |code| {
-        //
-    }));
-    net
-}
-
-#[wasm_bindgen]
-pub fn create_context() -> Context {
-    Context {
-        game: Game::new(),
-        selected: None,
-        gamemode: Gamemode::Solo,
-        generator: NameGenerator::new(),
+impl Default for Context {
+    fn default() -> Self {
+        Context::new()
     }
 }
 
 #[wasm_bindgen]
-pub fn start(ctx: &mut Context) {
-    setPieces(ctx.game.describe().as_slice());
-    highlight(&[]);
-
-    setScene(0);
-}
-
-#[wasm_bindgen]
-pub fn new_player_name(ctx: &mut Context) -> String {
-    ctx.generator.next().unwrap()
-}
-
-#[wasm_bindgen]
-pub fn set_gamemode(ctx: &mut Context, mode: u8) {
-    ctx.gamemode = mode.into();
-
-    if ctx.gamemode == Gamemode::Solo {
-        // Show settings
-        setScene(3);
-    } else if ctx.gamemode == Gamemode::Online {
-        // Show register
-        setScene(1);
-    }
-}
-
-#[wasm_bindgen]
-pub fn registered(ctx: &mut Context, name: String) {
-    // Show online lobby
-    setScene(2);
-}
-
-#[wasm_bindgen]
-pub fn create_room(ctx: &mut Context) {
-    // Show settings
-    setScene(3);
-
-    reset_net().start_as_host();
-}
-
-#[wasm_bindgen]
-pub fn join_room(ctx: &mut Context, room: String) {
-    reset_net().start_as_guest(room);
-}
-
-#[wasm_bindgen]
-pub fn set_settings(ctx: &mut Context, timer: Option<u32>, play_light: bool) {
-    setScene(-1);
-}
-
-#[wasm_bindgen]
-pub fn send_message(ctx: &mut Context, msg: String) {}
-
-#[wasm_bindgen]
-pub fn on_menu_hidden(ctx: &mut Context, menu: u8) {
-    // gamemode selection
-    if menu == 0 {
-        panic!("wasn't supposed to close this menu");
-    }
-
-    // register menu
-    if menu == 1 {
-        // Send back to gamemode selection
-        setScene(0);
-    // online menu
-    } else if menu == 2 {
-        // Send back to registration
-        setScene(1);
-    // settings menu
-    } else if menu == 3 {
-        if ctx.gamemode == Gamemode::Solo {
-            // Send back to gamemode selection
-            setScene(0);
-        } else {
-            // Send back to online menu
-            setScene(2);
-        }
-    }
-}
-
-#[wasm_bindgen]
-pub fn on_hex_clicked(ctx: &mut Context, q: u8, r: u8) {
-    if let Some(piece) = ctx.game.get_at(q, r) {
-        ctx.selected = Some((q, r));
-
-        let mut moves = ctx.game.available_moves(piece);
-        moves.push((piece.q, piece.r));
-        let moves: Vec<u16> = moves
-            .iter()
-            .map(|(q, r)| q << 4 & 0xf0 | r & 0xf)
-            .map(|hex| hex as u16)
-            .map(|hex| 1 << 8 | hex) // light effect
-            .collect();
-        highlight(moves.as_slice());
-        return;
-    }
-
-    if let Some(pos) = ctx.selected {
-        if let Some(packet) = ctx.game.move_piece(pos, (q, r)) {
-            movePieces(packet.as_slice());
+impl Context {
+    fn new() -> Self {
+        Context {
+            handlers: Rc::new(RefCell::new(vec![])),
+            queue: Rc::new(RefCell::new(VecDeque::new())),
         }
     }
 
-    ctx.selected = None;
-    highlight(&[]);
+    #[wasm_bindgen]
+    pub fn dispatch_empty(&self, evt: JsEvent) {
+        self.dispatch(evt, &[]);
+    }
+
+    #[wasm_bindgen]
+    pub fn dispatch(&self, evt: JsEvent, data: &[u8]) {
+        self.handle(Event::from_js(evt, data));
+    }
+
+    fn handle(&self, evt: Event) {
+        match self.handlers.try_borrow_mut() {
+            Ok(mut h) => {
+                // Called outside event handler
+                for handler in h.iter_mut() {
+                    handler(&evt);
+                }
+
+                // Resolve event queue
+                let opt = self.queue.borrow_mut().pop_front();
+                if let Some(evt) = opt {
+                    self.handle(evt);
+                }
+            }
+            Err(_) => {
+                // Called inside event handler
+                // Queue event
+                self.queue.borrow_mut().push_back(evt);
+            }
+        };
+    }
+
+    fn add_listener(&self, handler: Handler) {
+        self.handlers.borrow_mut().push(handler);
+    }
+}
+
+#[wasm_bindgen]
+pub fn setup() -> Context {
+    let ctx = Context::new();
+    attach!(ctx, InterfacesManager::new());
+    attach!(ctx, Client::new(&ctx));
+    ctx
 }

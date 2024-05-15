@@ -1,6 +1,6 @@
 import { board, ctx } from "./state";
 
-export { setScene } from "./scene";
+export { setScene, setPlayerName } from "./scene";
 export { joinResponse } from "../menus/online.js";
 export { addChatMessage } from "./chat.js";
 
