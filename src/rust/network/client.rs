@@ -2,8 +2,8 @@ use wasm_bindgen::prelude::*;
 
 use super::connector::Connector;
 use super::p2p::Connection;
-use super::packet::ChessPacket;
-use crate::glue::Event;
+use super::packet::{ChessPacket, Handshake, Ping};
+use crate::glue::{setPlayerName, Event};
 use crate::Context;
 
 #[wasm_bindgen]
@@ -15,6 +15,9 @@ extern "C" {
 pub struct Client {
     ctx: Context,
     conn: Option<Connection>,
+    name: String,
+    is_host: bool,
+    board: Vec<u16>,
 }
 
 impl Client {
@@ -22,15 +25,20 @@ impl Client {
         Client {
             ctx: ctx.clone(),
             conn: None,
+            name: "unknown".to_owned(),
+            is_host: false,
+            board: vec![],
         }
     }
 
     fn new_conn(&self, is_host: bool) -> Connector {
         let mut net = Connector::new();
 
+        let name = self.name.clone();
         let ctx = self.ctx.clone();
         net.set_onopen(Box::new(move |conn| {
             ctx.handle(Event::Connected(conn.clone()));
+            conn.send(ChessPacket::Handshake(Handshake { name: name.clone() }).write());
         }));
 
         let ctx = self.ctx.clone();
@@ -58,6 +66,38 @@ impl Client {
                     return;
                 }
             };
+
+            match packet {
+                ChessPacket::Handshake(p) => {
+                    setPlayerName(false, p.name);
+                }
+                ChessPacket::Start(p) => {
+                    if is_host {
+                        error("guest can't start match.");
+                        conn.close();
+                        return;
+                    }
+                    //
+                }
+                ChessPacket::ChatMessage(p) => {}
+                ChessPacket::Movement(p) => {}
+                ChessPacket::Resign(p) => {}
+                ChessPacket::Ping(p) => {
+                    if let Some(req) = p.request {
+                        conn.send(
+                            ChessPacket::Ping(Ping {
+                                request: None,
+                                reply_to: Some(req),
+                            })
+                            .write(),
+                        );
+                    }
+
+                    if let Some(req) = p.reply_to {
+                        // Ping response
+                    }
+                }
+            };
         }));
 
         net
@@ -74,9 +114,17 @@ impl Client {
             Event::Connected(conn) => {
                 self.conn = Some(conn.clone());
             }
+            Event::Register(name) => {
+                self.name = name.clone();
+            }
             Event::Disconnected => {
                 if let Some(conn) = self.conn.take() {
                     conn.close();
+                }
+            }
+            Event::LoadedBoard(board) => {
+                if self.is_host {
+                    self.board = board.clone();
                 }
             }
             _ => {}

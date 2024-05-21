@@ -4,6 +4,7 @@ import { assets, ctx } from "./state";
 const colors = ["#d18b47", "#e8ab6f", "#ffce9e"];
 const effects = {
   light: "rgba(255, 255, 0, 0.35)",
+  check: "rgba(255, 0, 0, 0.35)",
   hover: "rgba(255, 255, 255, 0.4)",
   click: "rgba(255, 255, 255, 0.5)",
 };

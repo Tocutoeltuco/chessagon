@@ -1,0 +1,119 @@
+use crate::game::directions::{DirectionIterator, BISHOP, KING, KNIGHT, QUEEN, ROOK};
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u8)]
+pub enum PieceKind {
+    King = 0,
+    Queen = 1,
+    Rook = 2,
+    Bishop = 3,
+    Knight = 4,
+    Pawn = 5,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u8)]
+pub enum Color {
+    Light = 0,
+    Dark = 1,
+}
+
+impl Color {
+    pub fn opposite(&self) -> Color {
+        match self {
+            Color::Light => Color::Dark,
+            Color::Dark => Color::Light,
+        }
+    }
+
+    pub fn is_light(&self) -> bool {
+        *self == Color::Light
+    }
+}
+
+impl From<u8> for PieceKind {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => Self::King,
+            1 => Self::Queen,
+            2 => Self::Rook,
+            3 => Self::Bishop,
+            4 => Self::Knight,
+            5 => Self::Pawn,
+            _ => panic!("invalid piece kind"),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Piece {
+    pub idx: u8,
+    pub kind: PieceKind,
+    pub color: Color,
+    pub q: u8,
+    pub r: u8,
+}
+
+impl Piece {
+    pub fn from_desc(idx: u8, desc: u16) -> Self {
+        let q = (desc >> 4 & 0xf) as u8;
+        let r = (desc & 0xf) as u8;
+        let kind = (desc >> 8 & 0x7) as u8;
+        let dark = (desc >> 11) > 0;
+        Piece {
+            idx,
+            kind: kind.into(),
+            color: if dark { Color::Dark } else { Color::Light },
+            q,
+            r,
+        }
+    }
+
+    pub fn describe(&self) -> u16 {
+        let q: u16 = self.q.into();
+        let r: u16 = self.r.into();
+        let kind: u16 = (self.kind as u8).into();
+        let dark: u16 = (self.color as u8).into();
+
+        dark << 11 | kind << 8 | q << 4 & 0xf0 | r & 0xf
+    }
+
+    pub fn movement(&mut self, q: u8, r: u8) -> u16 {
+        self.q = q;
+        self.r = r;
+
+        let q: u16 = q.into();
+        let r: u16 = r.into();
+        let idx: u16 = self.idx.into();
+
+        idx << 8 | q << 4 & 0xf0 | r & 0xf
+    }
+
+    pub fn available(&self) -> DirectionIterator {
+        if self.kind == PieceKind::Pawn {
+            let direction = if self.color.is_light() { -1 } else { 1 };
+            let repeat = match (self.color, self.q, self.r) {
+                // Light pawn starting squares
+                (Color::Light, q, 6) if q > 4 => 2,
+                (Color::Light, q, r) if r == 11 - q => 2,
+                // Dark pawn starting squares
+                (Color::Dark, q, 4) if q < 6 => 2,
+                (Color::Dark, q, r) if r == 9 - q => 2,
+                _ => 1,
+            };
+
+            return DirectionIterator::new(self.q, self.r, vec![(0, direction, repeat)]);
+        }
+
+        let container = match self.kind {
+            PieceKind::King => KING,
+            PieceKind::Queen => QUEEN,
+            PieceKind::Rook => ROOK,
+            PieceKind::Bishop => BISHOP,
+            PieceKind::Knight => KNIGHT,
+            PieceKind::Pawn => panic!("shouldnt be here"),
+        };
+
+        DirectionIterator::new(self.q, self.r, Vec::from(container))
+    }
+}

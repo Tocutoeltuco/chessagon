@@ -1,5 +1,5 @@
 import { resetMouseState, setupMouse } from "./mouse";
-import { board } from "./state";
+import { board, ctx } from "./state";
 import { drawGraph, GraphData } from "./graph";
 
 /**
@@ -16,12 +16,14 @@ let frameRequest;
  * @type {{light: Timer, dark: Timer}?}
  */
 let timers = null;
+let sentExpired = false;
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 setupMouse(canvas);
 
+graphs.addField("rtt", 10);
 graphs.addField("fps", 10, 1000, (values) => values.length);
 graphs.addField("renderTime", 10, 500, (values) => {
   let total = 0;
@@ -30,7 +32,12 @@ graphs.addField("renderTime", 10, 500, (values) => {
   }
   return total / values.length;
 });
-graphs.addField("rtt", 10);
+
+const sendTimerExpired = () => {
+  if (sentExpired) return;
+  sentExpired = true;
+  ctx.timerExpired();
+};
 
 /**
  * @param {CanvasRenderingContext2D} ctx
@@ -67,6 +74,10 @@ const drawTimer = (ctx, y, timer, baseline) => {
     .padStart(2, "0");
   const seconds = (left % 60).toString().padStart(2, "0");
   ctx.strokeText(minutes + ":" + seconds, x + 4, y + 4);
+
+  if (left === 0) {
+    sendTimerExpired();
+  }
 };
 
 const render = () => {
@@ -102,19 +113,27 @@ export const removeTimers = () => {
 /**
  * @param {number} light
  * @param {number} dark
- * @param {"light" | "dark" | "none"} active
+ * @param {number} active
  */
 export const setTimers = (light, dark, active) => {
+  sentExpired = false;
   timers = {
     light: {
       count: light,
-      activatedAt: active == "light" ? performance.now() : null,
+      activatedAt: active == 0 ? performance.now() : null,
     },
     dark: {
       count: dark,
-      activatedAt: active == "dark" ? performance.now() : null,
+      activatedAt: active == 1 ? performance.now() : null,
     },
   };
+};
+
+/**
+ * @param {number} time
+ */
+export const addRTT = (time) => {
+  graphs.addData("rtt", time);
 };
 
 export const show = () => {

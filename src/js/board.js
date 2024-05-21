@@ -4,7 +4,7 @@ import { ctx } from "./state";
 
 const SQRT = Math.sqrt(3);
 const PIECES = ["k", "q", "r", "b", "n", "p"];
-const EFFECTS = ["light"];
+const EFFECTS = ["light", "check"];
 
 /**
  * @typedef {{"k" | "q" | "r" | "b" | "n" | "p"}} PieceType
@@ -106,7 +106,7 @@ export class Board {
 
       const effects = [];
       for (let j = 0; j < EFFECTS.length; j++) {
-        if (flags & (1 << j > 0)) {
+        if ((flags & (1 << j)) > 0) {
           effects.push(EFFECTS[j]);
         }
       }
@@ -121,12 +121,12 @@ export class Board {
   setPieces(pieces) {
     this.pieces = [];
     for (let i = 0; i < pieces.length; i++) {
-      const light = (pieces[i] & 0x800) >> 11;
+      const dark = (pieces[i] & 0x800) >> 11;
       const piece = (pieces[i] & 0x700) >> 8;
       const q = (pieces[i] & 0xf0) >> 4;
       const r = pieces[i] & 0xf;
       this.pieces.push({
-        light: light === 1,
+        light: dark === 0,
         q: q,
         r: r,
         kind: PIECES[piece],

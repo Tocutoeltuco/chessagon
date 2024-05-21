@@ -10,9 +10,13 @@ extern "C" {
     pub fn setPieces(pieces: &[u16]);
     pub fn movePieces(pieces: &[u16]);
     pub fn highlight(hexes: &[u16]);
+    pub fn setTimers(light: u16, dark: u16, active: i8);
+    pub fn removeTimers();
+    pub fn addRTT(rtt: i32);
 }
 
 #[wasm_bindgen]
+#[derive(Debug)]
 pub enum JsEvent {
     Start,
     SetGamemode,
@@ -23,22 +27,44 @@ pub enum JsEvent {
     SendMessage,
     MenuHidden,
     HexClicked,
+    TimerExpired,
 }
 
+#[derive(Debug)]
 pub enum Event {
     Start,
     SetGamemode(u8),
     Register(String),
     CreateRoom,
     JoinRoom(String),
-    SetSettings { timer: u16, host_as_light: bool },
+    SetSettings {
+        timer: u16,
+        host_as_light: bool,
+    },
     SendMessage(String),
     MenuHidden(u8),
-    HexClicked { q: u8, r: u8 },
-    JoinedRoom { code: String, is_host: bool },
+    HexClicked {
+        q: u8,
+        r: u8,
+    },
+    JoinedRoom {
+        code: String,
+        is_host: bool,
+    },
     NetError(JsValue),
     Connected(Connection),
     Disconnected,
+    LoadedBoard(Vec<u16>),
+    Movement {
+        from: (u8, u8),
+        to: (u8, u8),
+        is_local: bool,
+    },
+    TimerExpired,
+    GameStart,
+    GameEnded {
+        won_light: bool,
+    },
 }
 
 impl Event {
@@ -60,6 +86,7 @@ impl Event {
                 q: buf.read_u8().unwrap(),
                 r: buf.read_u8().unwrap(),
             },
+            JsEvent::TimerExpired => Self::TimerExpired,
         }
     }
 }

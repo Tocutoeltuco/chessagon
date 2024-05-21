@@ -1,4 +1,6 @@
-use crate::piece::{Piece, PieceKind};
+use crate::game::piece::{Piece, PieceKind};
+
+use super::piece::Color;
 
 pub const KING: &[(i8, i8, u8)] = &[
     (-1, -1, 1),
@@ -164,8 +166,8 @@ impl DirectionIterator {
         obj
     }
 
-    pub fn pawn_capture(q: u8, r: u8, light: bool) -> Self {
-        let dir = if light { -1 } else { 1 };
+    pub fn pawn_capture(q: u8, r: u8, color: Color) -> Self {
+        let dir = if color.is_light() { -1 } else { 1 };
         DirectionIterator::new(q, r, vec![(dir, 0, 1), (-dir, dir, 1)])
     }
 
@@ -199,7 +201,7 @@ pub struct MovementIterator<'a> {
     pieces: &'a Vec<Piece>,
     directions: DirectionIterator,
     pawn: bool,
-    light: bool,
+    color: Color,
     only_pieces: bool,
     extra: DirectionIterator,
 }
@@ -208,7 +210,7 @@ impl<'a> MovementIterator<'a> {
     pub fn new(pieces: &'a Vec<Piece>, piece: &Piece) -> Self {
         let pawn = piece.kind == PieceKind::Pawn;
         let extra = if pawn {
-            DirectionIterator::pawn_capture(piece.q, piece.r, piece.light)
+            DirectionIterator::pawn_capture(piece.q, piece.r, piece.color)
         } else {
             DirectionIterator::new(0, 0, vec![])
         };
@@ -217,18 +219,18 @@ impl<'a> MovementIterator<'a> {
             pieces,
             directions: piece.available(),
             pawn,
-            light: piece.light,
+            color: piece.color,
             only_pieces: false,
             extra,
         }
     }
 
-    pub fn threatened(pieces: &'a Vec<Piece>, light: bool, q: u8, r: u8) -> Self {
+    pub fn threatened(pieces: &'a Vec<Piece>, color: Color, q: u8, r: u8) -> Self {
         MovementIterator {
             pieces,
             directions: DirectionIterator::new(q, r, Vec::from(THREATEN_CHECK)),
             pawn: false,
-            light,
+            color,
             only_pieces: true,
             extra: DirectionIterator::new(0, 0, vec![]),
         }
@@ -247,7 +249,7 @@ impl<'a> Iterator for MovementIterator<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(pos) = self.extra.next() {
             if let Some(piece) = self.get_at(pos.0, pos.1) {
-                if piece.light != self.light {
+                if piece.color != self.color {
                     return Some(pos);
                 }
             }
@@ -262,7 +264,7 @@ impl<'a> Iterator for MovementIterator<'a> {
             let pos = self.directions.next()?;
 
             if let Some(other) = self.get_at(pos.0, pos.1) {
-                let same_color = other.light == self.light;
+                let same_color = other.color == self.color;
 
                 self.directions.next_dir();
                 if self.pawn || same_color {

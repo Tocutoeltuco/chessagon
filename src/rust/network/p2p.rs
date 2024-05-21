@@ -67,7 +67,7 @@ fn de_candidate(candidate: &IceCandidate) -> RtcIceCandidate {
     RtcIceCandidate::new(&init).expect("couldn't deserialize ice candidate")
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Connection {
     conn: RtcPeerConnection,
     channel: RtcDataChannel,

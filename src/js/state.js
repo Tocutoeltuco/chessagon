@@ -33,8 +33,15 @@ class JsContext {
   }
 
   setSettings(time, hostAsLight) {
-    const buf = Uint16Array.from([time, hostAsLight ? 256 : 0]);
-    wasm.dispatch(JsEvent.SetSettings, new Uint8Array(buf.buffer));
+    const buf = new Uint8Array(3);
+    buf[0] = (time >> 8) & 0xff;
+    buf[1] = time & 0xff;
+    buf[2] = hostAsLight ? 1 : 0;
+    wasm.dispatch(JsEvent.SetSettings, buf);
+  }
+
+  timerExpired() {
+    wasm.dispatch_empty(JsEvent.TimerExpired);
   }
 
   sendMessage(msg) {

@@ -1,21 +1,71 @@
+mod names;
+
+use wasm_bindgen::prelude::*;
+
 use crate::{
     glue::{joinResponse, setPlayerName, setScene, Event},
-    names::new_name,
-    utils::{Gamemode, Scene},
+    utils::Gamemode,
+    Context,
 };
+use names::new_name;
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum Scene {
+    Loading,
+    Canvas,
+    Gamemode,
+    Register,
+    Online,
+    Settings,
+}
+
+impl From<i8> for Scene {
+    fn from(value: i8) -> Self {
+        match value {
+            -2 => Scene::Loading,
+            -1 => Scene::Canvas,
+            0 => Scene::Gamemode,
+            1 => Scene::Register,
+            2 => Scene::Online,
+            3 => Scene::Settings,
+            _ => panic!("invalid scene"),
+        }
+    }
+}
+
+impl From<Scene> for i8 {
+    fn from(value: Scene) -> i8 {
+        match value {
+            Scene::Loading => -2,
+            Scene::Canvas => -1,
+            Scene::Gamemode => 0,
+            Scene::Register => 1,
+            Scene::Online => 2,
+            Scene::Settings => 3,
+        }
+    }
+}
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn error(s: &str);
+}
 
 pub struct InterfacesManager {
     gamemode: Gamemode,
     scene: Scene,
     name: String,
+    ctx: Context,
 }
 
 impl InterfacesManager {
-    pub fn new() -> Self {
+    pub fn new(ctx: &Context) -> Self {
         InterfacesManager {
             gamemode: Gamemode::Solo,
             scene: Scene::Gamemode,
             name: new_name(),
+            ctx: ctx.clone(),
         }
     }
 
@@ -26,7 +76,10 @@ impl InterfacesManager {
 
     fn menu_hidden(&mut self) {
         self.set_scene(match self.scene {
-            Scene::Register => Scene::Gamemode,
+            Scene::Register => {
+                self.ctx.handle(Event::Disconnected);
+                Scene::Gamemode
+            }
             Scene::Online => Scene::Register,
             Scene::Settings => {
                 if self.gamemode == Gamemode::Solo {

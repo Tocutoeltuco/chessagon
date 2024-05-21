@@ -1,17 +1,14 @@
-mod controller;
-mod directions;
 mod game;
 mod glue;
-mod iface;
-mod names;
+mod interface;
 mod network;
-mod piece;
 mod utils;
 
 use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
+use game::Controller;
 use glue::{Event, JsEvent};
-use iface::InterfacesManager;
+use interface::InterfacesManager;
 use network::Client;
 use wasm_bindgen::prelude::*;
 
@@ -65,19 +62,20 @@ impl Context {
                 for handler in h.iter_mut() {
                     handler(&evt);
                 }
-
-                // Resolve event queue
-                let opt = self.queue.borrow_mut().pop_front();
-                if let Some(evt) = opt {
-                    self.handle(evt);
-                }
             }
             Err(_) => {
                 // Called inside event handler
                 // Queue event
                 self.queue.borrow_mut().push_back(evt);
+                return;
             }
         };
+
+        // Resolve event queue
+        let opt = self.queue.borrow_mut().pop_front();
+        if let Some(evt) = opt {
+            self.handle(evt);
+        }
     }
 
     fn add_listener(&self, handler: Handler) {
@@ -88,7 +86,8 @@ impl Context {
 #[wasm_bindgen]
 pub fn setup() -> Context {
     let ctx = Context::new();
-    attach!(ctx, InterfacesManager::new());
+    attach!(ctx, InterfacesManager::new(&ctx));
     attach!(ctx, Client::new(&ctx));
+    attach!(ctx, Controller::new(&ctx));
     ctx
 }
