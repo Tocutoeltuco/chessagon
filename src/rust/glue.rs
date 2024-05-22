@@ -15,6 +15,7 @@ extern "C" {
     pub fn setTimers(light: u16, dark: u16, active: i8);
     pub fn removeTimers();
     pub fn addRTT(rtt: i32);
+    pub fn setBoardPerspective(is_light: bool);
 }
 
 #[wasm_bindgen]

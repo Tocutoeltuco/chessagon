@@ -14,7 +14,10 @@ use super::{
 };
 use crate::{
     chat::Chat,
-    glue::{hideChat, movePieces, removeTimers, setPieces, setTimers, showChat, Event},
+    glue::{
+        hideChat, movePieces, removeTimers, setBoardPerspective, setPieces, setTimers, showChat,
+        Event,
+    },
     utils::Gamemode,
     Context,
 };
@@ -224,6 +227,7 @@ impl Controller {
                 } else {
                     None
                 };
+                setBoardPerspective(self.is_solo || self.color.is_light());
 
                 if self.is_host || self.is_solo {
                     self.board.load_default();

@@ -22,6 +22,7 @@ export class Board {
     this.size = size;
     this.assets = assets;
 
+    this.flipped = false;
     this.x = 0;
     this.y = 0;
     this.width = 0;
@@ -50,24 +51,42 @@ export class Board {
     this.hexSize = Math.min(desiredW, desiredH);
 
     this.x = (this.width - this.hexSize * 17) / 2;
-    this.y = (this.height - this.hexSize * 19) / 2 - 5;
+    this.y = (this.height - this.hexSize * 19) / 2;
 
     const middle = Math.floor(this.size / 2);
-    this.y -= (SQRT / 2) * middle * this.hexSize;
+    this.y -= (SQRT / 2) * middle * this.hexSize + 4;
 
     this.resized = true;
   }
 
-  _getPixel(q, r) {
-    const x = 1.5 * q;
-    const y = (SQRT / 2) * q + SQRT * r;
+  flip(state) {
+    this.flipped = state;
+  }
 
-    return [x * this.hexSize + this.x, y * this.hexSize + this.y];
+  _getX(x) {
+    if (this.flipped) {
+      return this.width - x;
+    }
+    return x;
+  }
+
+  _getY(y) {
+    if (this.flipped) {
+      return this.height - y;
+    }
+    return y;
+  }
+
+  _getPixel(q, r) {
+    let x = 1.5 * q * this.hexSize + this.hexSize;
+    let y = ((SQRT / 2) * q + SQRT * r) * this.hexSize + this.hexSize;
+
+    return [this._getX(x + this.x), this._getY(y + this.y)];
   }
 
   _getHex(x, y) {
-    x = (x - this.x) / this.hexSize - 1;
-    y = (y - this.y) / this.hexSize - 1;
+    x = (this._getX(x) - this.x) / this.hexSize - 1;
+    y = (this._getY(y) - this.y) / this.hexSize - 1;
 
     // Get hex position
     const q = x / 1.5;
@@ -221,7 +240,13 @@ export class Board {
         const [x, y] = this._getPixel(q, r);
         const color = (q + r * 2 + 1) % 3;
 
-        ctx.drawImage(this.assets.get(`hex_${color}`), x, y, size, size);
+        ctx.drawImage(
+          this.assets.get(`hex_${color}`),
+          x - this.hexSize,
+          y - this.hexSize,
+          size,
+          size,
+        );
       }
     }
 
@@ -231,8 +256,8 @@ export class Board {
       for (let j = 0; j < effects.length; j++) {
         ctx.drawImage(
           this.assets.get(`hex_effect_${effects[j]}`),
-          x,
-          y,
+          x - this.hexSize,
+          y - this.hexSize,
           size,
           size,
         );
@@ -251,7 +276,13 @@ export class Board {
       const light = piece.light ? "l" : "d";
       const asset = this.assets.get(`./assets/piece_${piece.kind}${light}.svg`);
 
-      ctx.drawImage(asset, offset + x, offset + y, pSize, pSize);
+      ctx.drawImage(
+        asset,
+        offset + x - this.hexSize,
+        offset + y - this.hexSize,
+        pSize,
+        pSize,
+      );
     }
 
     if (this.isInBounds(mouseQ, mouseR)) {
@@ -263,7 +294,13 @@ export class Board {
       }
 
       const [x, y] = this._getPixel(mouseQ, mouseR);
-      ctx.drawImage(this.assets.get(effect), x, y, size, size);
+      ctx.drawImage(
+        this.assets.get(effect),
+        x - this.hexSize,
+        y - this.hexSize,
+        size,
+        size,
+      );
     }
   }
 }
