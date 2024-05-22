@@ -7,12 +7,18 @@ use worker::*;
 
 type IceCandidate = (String, Option<String>, Option<u16>);
 
+const FIRST_POLL: u64 = 1;
+const POLL: u64 = 10;
+const GRACE: u64 = 20;
+const CONNECT: u64 = 5;
+
 #[derive(Serialize, Deserialize, Clone)]
 enum Signal {
     SetSDP(String),
     AddCandidate(IceCandidate),
     JoinRoom(String),
     ConnectAt(SystemTime),
+    NextPoll(SystemTime),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -63,7 +69,7 @@ impl From<AuthMetadata> for HashMap<String, String> {
 
 struct PeerMetadata {
     token: String,
-    last_read: SystemTime,
+    next_poll: SystemTime,
 }
 
 struct RoomMetadata {
@@ -84,20 +90,20 @@ impl From<HashMap<String, String>> for RoomMetadata {
                     continue;
                 }
             };
-            let last_read = match value.get(&(prefix.to_owned() + "last_read")) {
+            let next_poll = match value.get(&(prefix.to_owned() + "next_poll")) {
                 Some(l) => l,
                 None => {
                     continue;
                 }
             };
-            if token.is_empty() || last_read.is_empty() {
+            if token.is_empty() || next_poll.is_empty() {
                 continue;
             }
             let token = token.to_owned();
-            let last_read = last_read.parse().unwrap();
-            let last_read = UNIX_EPOCH + Duration::from_secs(last_read);
+            let next_poll = next_poll.parse().unwrap();
+            let next_poll = UNIX_EPOCH + Duration::from_secs(next_poll);
 
-            *slot = Some(PeerMetadata { token, last_read });
+            *slot = Some(PeerMetadata { token, next_poll });
         }
 
         RoomMetadata {
@@ -113,15 +119,15 @@ impl From<RoomMetadata> for HashMap<String, String> {
         for (prefix, opt) in [("offer_", Some(value.offer)), ("answer_", value.answer)] {
             if let Some(peer) = opt {
                 let last = peer
-                    .last_read
+                    .next_poll
                     .duration_since(UNIX_EPOCH)
                     .expect("time travel?")
                     .as_secs();
                 map.insert(prefix.to_owned() + "token", peer.token);
-                map.insert(prefix.to_owned() + "last_read", last.to_string());
+                map.insert(prefix.to_owned() + "next_poll", last.to_string());
             } else {
                 map.insert(prefix.to_owned() + "token", "".to_owned());
-                map.insert(prefix.to_owned() + "last_read", "".to_owned());
+                map.insert(prefix.to_owned() + "next_poll", "".to_owned());
             }
         }
 
@@ -240,7 +246,7 @@ async fn create_room(bucket: &Bucket, token: &str, signals: Vec<Signal>) -> Resu
         RoomMetadata {
             offer: PeerMetadata {
                 token: token.to_owned(),
-                last_read: SystemTime::now(),
+                next_poll: SystemTime::now() + Duration::from_secs(FIRST_POLL),
             },
             answer: None,
         },
@@ -257,7 +263,7 @@ async fn update_meta(
     code: &str,
 ) -> Result<bool> {
     if meta.offer.token == token {
-        meta.offer.last_read = SystemTime::now();
+        meta.offer.next_poll = SystemTime::now() + Duration::from_secs(POLL);
         return Ok(true);
     }
 
@@ -265,7 +271,7 @@ async fn update_meta(
         if peer.token != token {
             return Ok(false);
         }
-        peer.last_read = SystemTime::now();
+        peer.next_poll = SystemTime::now() + Duration::from_secs(POLL);
         return Ok(true);
     }
 
@@ -281,7 +287,7 @@ async fn update_meta(
     room.answer.queue.push(Signal::JoinRoom(code.to_owned()));
     meta.answer = Some(PeerMetadata {
         token: token.to_owned(),
-        last_read: SystemTime::now(),
+        next_poll: SystemTime::now() + Duration::from_secs(FIRST_POLL),
     });
 
     Ok(true)
@@ -310,8 +316,11 @@ async fn poll(mut req: Request, env: Env) -> Result<Response> {
         }
     };
     let signals = req.json::<Vec<Signal>>().await?;
-    if signals.iter().any(|s| matches!(s, Signal::ConnectAt(_))) {
-        return Response::error("Can't send signal ConnectAt.", 400);
+    if signals
+        .iter()
+        .any(|s| matches!(s, Signal::ConnectAt(_) | Signal::NextPoll(_)))
+    {
+        return Response::error("Can't send signal ConnectAt nor NextPoll.", 400);
     }
 
     let bucket = env.bucket("rtc")?;
@@ -355,14 +364,14 @@ async fn poll(mut req: Request, env: Env) -> Result<Response> {
         return Response::error("Invalid room code.", 400);
     }
 
-    let loc;
+    let (loc, loc_meta);
     let (rem, rem_meta);
     if meta.offer.token == token {
-        loc = &mut room.offer;
-        (rem, rem_meta) = (&mut room.answer, meta.answer.as_mut());
+        (loc, loc_meta) = (&mut room.offer, &meta.offer);
+        (rem, rem_meta) = (&mut room.answer, meta.answer.as_ref());
     } else {
-        loc = &mut room.answer;
-        (rem, rem_meta) = (&mut room.offer, Some(&mut meta.offer));
+        (loc, loc_meta) = (&mut room.answer, meta.answer.as_ref().unwrap());
+        (rem, rem_meta) = (&mut room.offer, Some(&meta.offer));
     }
 
     if signals.iter().any(|s| matches!(s, Signal::SetSDP(_))) {
@@ -373,13 +382,14 @@ async fn poll(mut req: Request, env: Env) -> Result<Response> {
         loc.sent_sdp = true;
         if rem.sent_sdp {
             // Connect
-            let connect = rem_meta.unwrap().last_read + Duration::from_secs(15);
+            let connect = rem_meta.unwrap().next_poll + Duration::from_secs(CONNECT);
             loc.queue.push(Signal::ConnectAt(connect));
             rem.queue.push(Signal::ConnectAt(connect));
         }
     }
 
-    let queue: Vec<_> = loc.queue.drain(0..).collect();
+    let mut queue: Vec<_> = loc.queue.drain(0..).collect();
+    queue.push(Signal::NextPoll(loc_meta.next_poll));
 
     rem.queue.extend(
         signals
@@ -436,7 +446,7 @@ async fn cleanup(_evt: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
         .expect("couldn't list rooms");
 
     let now = SystemTime::now();
-    let kill_after = Duration::from_secs(20);
+    let kill_after = Duration::from_secs(GRACE);
     let mut to_delete = vec![];
 
     for obj in objects.objects().iter() {
@@ -453,9 +463,9 @@ async fn cleanup(_evt: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
 
             let mut kill = false;
             if let Some(ref answer) = meta.answer {
-                kill = now >= answer.last_read + kill_after;
+                kill = now >= (answer.next_poll + kill_after);
             }
-            kill = kill || now >= meta.offer.last_read + kill_after;
+            kill = kill || now >= (meta.offer.next_poll + kill_after);
 
             if kill {
                 to_delete.push("auth:".to_owned() + &meta.offer.token);
