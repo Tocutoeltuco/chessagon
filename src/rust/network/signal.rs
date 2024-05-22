@@ -1,8 +1,11 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{window, Request, RequestInit, RequestMode, Response};
-use web_time::SystemTime;
+use web_time::{Duration, Instant, SystemTime};
+
+use crate::utils::wait_until;
 
 use super::p2p::IceCandidate;
 
@@ -16,6 +19,8 @@ pub enum Signal {
     JoinRoom(String),
     // When to attempt peer connection
     ConnectAt(SystemTime),
+    // When to poll next
+    NextPoll(SystemTime),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -68,52 +73,27 @@ async fn poll(url: &str, auth: &str, updates: Vec<Signal>) -> Result<Vec<Signal>
 
 pub struct SignalClient {
     url: String,
-    token: String,
+    token: Option<String>,
     pub room: String,
     pub peer_sdp: Option<String>,
     pub peer_ice: Vec<IceCandidate>,
-    pub connect_at: Option<SystemTime>,
+    pub connect_at: Option<Instant>,
+    signal_queue: Vec<Signal>,
+    next_poll: Instant,
 }
 
 impl SignalClient {
-    async fn new_bare(url: &str) -> Result<Self, JsValue> {
-        Ok(SignalClient {
+    pub fn new(url: &str) -> Self {
+        SignalClient {
             url: url.to_string(),
-            token: ident(url).await?,
+            token: None,
             room: "".to_string(),
             peer_sdp: None,
             peer_ice: vec![],
             connect_at: None,
-        })
-    }
-
-    pub async fn new_as_host(
-        url: &str,
-        sdp: String,
-        mut ice: Vec<IceCandidate>,
-    ) -> Result<Self, JsValue> {
-        let mut obj = SignalClient::new_bare(url).await?;
-        let mut signals = vec![Signal::SetSDP(sdp)];
-        signals.extend(ice.drain(0..).map(Signal::AddCandidate));
-        obj.poll_with_signals(signals).await?;
-
-        if obj.room.is_empty() {
-            panic!("couldn't create room");
+            signal_queue: vec![],
+            next_poll: Instant::now(),
         }
-
-        Ok(obj)
-    }
-
-    pub async fn new_as_guest(url: &str, room: String) -> Result<Self, JsValue> {
-        let mut obj = SignalClient::new_bare(url).await?;
-        obj.poll_with_signals(vec![Signal::JoinRoom(room.clone())])
-            .await?;
-
-        if obj.room.is_empty() || obj.peer_sdp.is_none() || obj.peer_ice.is_empty() {
-            panic!("couldn't join room");
-        }
-
-        Ok(obj)
     }
 
     fn handle_signals(&mut self, signals: Vec<Signal>) {
@@ -128,29 +108,54 @@ impl SignalClient {
                 Signal::AddCandidate(c) => {
                     self.peer_ice.push(c);
                 }
-                Signal::ConnectAt(a) => {
-                    self.connect_at = Some(a);
+                Signal::ConnectAt(d) => {
+                    let d = d.duration_since(SystemTime::now()).unwrap_or_default();
+                    self.connect_at = Some(Instant::now() + d);
+                }
+                Signal::NextPoll(d) => {
+                    let d = d.duration_since(SystemTime::now()).unwrap_or_default();
+                    self.next_poll = Instant::now() + d;
                 }
             };
         }
     }
 
-    async fn poll_with_signals(&mut self, signals: Vec<Signal>) -> Result<(), JsValue> {
-        let signals = poll(&self.url, &self.token, signals).await?;
-        self.handle_signals(signals);
-        Ok(())
+    pub async fn wait_for_poll(&mut self) {
+        wait_until(self.next_poll).await;
+        // Safeguard: default delay
+        self.next_poll = Instant::now() + Duration::from_secs(10);
     }
 
     pub async fn poll(&mut self) -> Result<(), JsValue> {
-        self.poll_with_signals(vec![]).await
+        // Ident if not already
+        let token = match self.token.as_ref() {
+            Some(t) => t,
+            None => {
+                let token = ident(&self.url).await?;
+                self.token = Some(token);
+
+                self.token.as_ref().unwrap()
+            }
+        };
+
+        // Move all values from queue
+        let signals: Vec<_> = self.signal_queue.drain(0..).collect();
+        let signals = poll(&self.url, token, signals).await?;
+        self.handle_signals(signals);
+
+        Ok(())
     }
 
-    pub async fn send_sdp(&mut self, sdp: String) -> Result<(), JsValue> {
-        self.poll_with_signals(vec![Signal::SetSDP(sdp)]).await
+    pub fn send_join_room(&mut self, code: String) {
+        self.signal_queue.push(Signal::JoinRoom(code));
     }
 
-    pub async fn send_ice(&mut self, mut ice: Vec<IceCandidate>) -> Result<(), JsValue> {
-        self.poll_with_signals(ice.drain(0..).map(Signal::AddCandidate).collect())
-            .await
+    pub fn send_sdp(&mut self, sdp: String) {
+        self.signal_queue.push(Signal::SetSDP(sdp));
+    }
+
+    pub fn send_ice(&mut self, mut ice: Vec<IceCandidate>) {
+        self.signal_queue
+            .extend(ice.drain(0..).map(Signal::AddCandidate));
     }
 }

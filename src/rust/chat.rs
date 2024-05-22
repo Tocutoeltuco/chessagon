@@ -29,4 +29,16 @@ impl Chat {
     pub fn resign(is_light: bool) {
         addChatMessage(if is_light { 8 } else { 9 }, vec![]);
     }
+
+    pub fn new_peer() {
+        addChatMessage(10, vec![]);
+    }
+
+    pub fn connected(name: &str) {
+        addChatMessage(11, vec![name.to_owned()]);
+    }
+
+    pub fn disconnected() {
+        addChatMessage(12, vec![]);
+    }
 }

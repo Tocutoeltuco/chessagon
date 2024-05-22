@@ -20,6 +20,18 @@
   margin-left: 0.25em;
 }
 
+#game-buttons {
+  z-index: 1000;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  margin-bottom: 1em;
+  margin-right: 1em;
+  gap: 0.5em;
+}
+
 #chat {
   position: absolute;
   bottom: 0;

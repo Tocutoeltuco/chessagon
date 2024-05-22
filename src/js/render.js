@@ -89,8 +89,12 @@ const render = () => {
 
   if (timers) {
     const margin = 20;
-    drawTimer(ctx, margin, timers.dark, "top");
-    drawTimer(ctx, canvas.height - margin, timers.light, "bottom");
+    let [top, bot] = [timers.dark, timers.light];
+    if (board.flipped) {
+      [top, bot] = [bot, top];
+    }
+    drawTimer(ctx, margin, top, "top");
+    drawTimer(ctx, canvas.height - margin, bot, "bottom");
   }
 
   const data = graphs.getCurrent();

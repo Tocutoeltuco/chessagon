@@ -15,8 +15,8 @@ use super::{
 use crate::{
     chat::Chat,
     glue::{
-        hideChat, movePieces, removeTimers, setBoardPerspective, setPieces, setTimers, showChat,
-        Event,
+        hideChat, movePieces, removeTimers, setBoardPerspective, setPieces, setTimers, showButtons,
+        showChat, Button, Event,
     },
     utils::Gamemode,
     Context,
@@ -190,21 +190,21 @@ impl Controller {
             }
             Event::Disconnected => {
                 self.is_connected = false;
+                self.turn = None;
+                Chat::disconnected();
+                hideChat();
             }
             Event::SetGamemode(mode) => {
                 let mode: Gamemode = (*mode).into();
                 self.is_solo = mode == Gamemode::Solo;
-
-                if self.is_solo {
-                    hideChat();
-                } else {
-                    showChat();
-                }
+                hideChat();
             }
             Event::Register(name) => {
                 self.name = name.clone();
             }
             Event::Handshake(name) => {
+                Chat::connected(name);
+                showChat();
                 self.opp_name = name.clone();
             }
             Event::JoinedRoom { is_host, .. } => {
@@ -331,7 +331,7 @@ impl Controller {
                 let is_light = self.get_color(*local).is_light();
                 Chat::resign(is_light);
                 self.ctx.handle(Event::GameEnded {
-                    won_light: is_light,
+                    won_light: !is_light,
                 });
             }
             Event::ChatMessage { is_local, content } => {
@@ -351,6 +351,11 @@ impl Controller {
                 self.turn = Some(Color::Light);
 
                 Chat::game_start();
+                if !self.is_solo {
+                    showButtons(&[Button::Resign.into()]);
+                } else {
+                    showButtons(&[]);
+                }
             }
             Event::GameEnded { won_light } => {
                 self.turn = None;
@@ -360,6 +365,16 @@ impl Controller {
                 self.send_timers();
 
                 Chat::game_end(*won_light);
+                if self.is_solo || self.is_host {
+                    showButtons(&[Button::PlayAgain.into()]);
+                } else {
+                    showButtons(&[]);
+                }
+            }
+            Event::GameButtonClick(btn) => {
+                if *btn == Button::Resign {
+                    self.ctx.handle(Event::Resign(true));
+                }
             }
             _ => {}
         };

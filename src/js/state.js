@@ -57,6 +57,10 @@ class JsContext {
     const buf = Uint8Array.from([q, r]);
     wasm.dispatch(JsEvent.HexClicked, buf);
   }
+
+  gameButtonClick(id) {
+    wasm.dispatch(JsEvent.GameButtonClick, new Uint8Array([id]));
+  }
 }
 
 export const ctx = new JsContext();

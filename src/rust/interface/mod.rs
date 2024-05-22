@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::{
     chat::Chat,
-    glue::{joinResponse, setPlayerName, setScene, Event},
+    glue::{joinResponse, setPlayerName, setScene, Button, Event},
     utils::{new_rng, Gamemode},
     Context,
 };
@@ -117,6 +117,11 @@ impl InterfacesManager {
             }
             Event::SetSettings { .. } => {
                 self.set_scene(Scene::Canvas);
+            }
+            Event::GameButtonClick(btn) => {
+                if *btn == Button::PlayAgain {
+                    self.set_scene(Scene::Settings);
+                }
             }
             Event::JoinedRoom { code, is_host } => {
                 Chat::join_room(code);

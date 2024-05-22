@@ -18,7 +18,7 @@ joinForm.addEventListener("submit", (evt) => {
   spinner.hidden = false;
 
   clearTimeout(timeout);
-  timeout = setTimeout(() => joinResponse("timeout"), 5000);
+  timeout = setTimeout(() => joinResponse("timeout"), 15000);
 
   const code = codeInput.value;
   evtTarget.dispatchEvent(new CustomEvent("chess.join", { detail: code }));

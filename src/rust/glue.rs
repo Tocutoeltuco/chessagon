@@ -16,6 +16,32 @@ extern "C" {
     pub fn removeTimers();
     pub fn addRTT(rtt: i32);
     pub fn setBoardPerspective(is_light: bool);
+    pub fn showButtons(ids: &[u8]);
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Button {
+    Resign,
+    PlayAgain,
+}
+
+impl From<u8> for Button {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => Self::Resign,
+            1 => Self::PlayAgain,
+            _ => panic!("invalid button"),
+        }
+    }
+}
+
+impl From<Button> for u8 {
+    fn from(value: Button) -> Self {
+        match value {
+            Button::Resign => 0,
+            Button::PlayAgain => 1,
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -31,6 +57,7 @@ pub enum JsEvent {
     MenuHidden,
     HexClicked,
     TimerExpired,
+    GameButtonClick,
 }
 
 #[derive(Debug)]
@@ -75,6 +102,7 @@ pub enum Event {
     PingRequest,
     PacketReceived(ChessPacket),
     Resign(bool),
+    GameButtonClick(Button),
 }
 
 impl Event {
@@ -100,6 +128,7 @@ impl Event {
                 r: buf.read_u8().unwrap(),
             },
             JsEvent::TimerExpired => Self::TimerExpired,
+            JsEvent::GameButtonClick => Self::GameButtonClick(buf.read_u8().unwrap().into()),
         }
     }
 }

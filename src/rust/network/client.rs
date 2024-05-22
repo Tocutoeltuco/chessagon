@@ -8,6 +8,7 @@ use super::p2p::Connection;
 use super::packet::{
     ChatMessage, ChessPacket, Handshake, Movement, Ping, Resign, SetBoard, SetSettings, Start,
 };
+use crate::chat::Chat;
 use crate::glue::{addRTT, setPlayerName, Event};
 use crate::utils::new_rng;
 use crate::Context;
@@ -57,6 +58,10 @@ impl Client {
 
     fn new_conn(&self, is_host: bool) -> Connector {
         let mut net = Connector::new();
+
+        net.set_onestablishing(Box::new(move || {
+            Chat::new_peer();
+        }));
 
         let name = self.name.clone();
         let ctx = self.ctx.clone();

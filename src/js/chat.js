@@ -43,6 +43,9 @@ const templates = [
   "expired-dark",
   "resign-light",
   "resign-dark",
+  "new-peer",
+  "connected",
+  "disconnected",
 ];
 
 /**

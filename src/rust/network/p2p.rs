@@ -1,4 +1,5 @@
-use futures::StreamExt;
+use std::{cell::RefCell, rc::Rc};
+
 use js_sys::{Array, Reflect, Uint8Array};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
@@ -71,6 +72,8 @@ fn de_candidate(candidate: &IceCandidate) -> RtcIceCandidate {
 pub struct Connection {
     conn: RtcPeerConnection,
     channel: RtcDataChannel,
+    ice_rx: Rc<RefCell<Option<futures_channel::mpsc::UnboundedReceiver<Option<RtcIceCandidate>>>>>,
+    open: Rc<RefCell<bool>>,
 }
 
 impl Connection {
@@ -90,10 +93,16 @@ impl Connection {
         let channel = conn.create_data_channel_with_data_channel_dict("chessagon", &conf);
         channel.set_binary_type(RtcDataChannelType::Arraybuffer);
 
-        Connection { conn, channel }
+        Connection {
+            conn,
+            channel,
+            ice_rx: Default::default(),
+            open: Default::default(),
+        }
     }
 
     pub fn close(&self) {
+        *self.open.borrow_mut() = false;
         self.channel.set_onopen(None);
         self.channel.set_onmessage(None);
         self.channel.set_onclose(None);
@@ -108,7 +117,9 @@ impl Connection {
     }
 
     pub fn set_onopen(&self, mut handler: Box<dyn FnMut()>) {
+        let open = self.open.clone();
         let handler: Box<dyn FnMut(_)> = Box::new(move |_event: RtcDataChannelEvent| {
+            *open.borrow_mut() = false;
             handler();
         });
         set_event!(self.channel, handler, set_onopen);
@@ -123,43 +134,49 @@ impl Connection {
     }
 
     pub fn set_onclose(&self, mut handler: Box<dyn FnMut()>) {
+        let open = self.open.clone();
         let handler: Box<dyn FnMut(_)> = Box::new(move |_event: Event| {
+            *open.borrow_mut() = false;
             handler();
         });
         set_event!(self.channel, handler, set_onclose);
     }
 
-    fn listen_ice_candidates(&self) -> futures_channel::mpsc::Receiver<Option<RtcIceCandidate>> {
-        // Prepares a listener for onicecandidate events, and
-        // sends them to a mpsc channel
-        let (mut tx, rx) = futures_channel::mpsc::channel(1);
-        let handler: Box<dyn FnMut(_)> = Box::new(move |event: RtcPeerConnectionIceEvent| {
-            // This will send None when no more candidates are available
-            tx.try_send(event.candidate()).unwrap();
-        });
-        set_event!(self.conn, handler, set_onicecandidate);
-
-        rx
+    pub fn is_open(&self) -> bool {
+        *self.open.borrow()
     }
 
-    async fn collect_ice_candidates(
-        &self,
-        mut rx: futures_channel::mpsc::Receiver<Option<RtcIceCandidate>>,
-    ) -> Vec<RtcIceCandidate> {
-        // Collects ICE candidates into a vec and cleans up
-        // the onicecandidate event.
-        let mut candidates = vec![];
-        while let Some(opt) = rx.next().await {
-            if let Some(item) = opt {
-                candidates.push(item);
-            } else {
-                // No more items.
-                break;
-            }
-        }
-        self.conn.set_onicecandidate(None);
+    fn listen_ice_candidates(&self) {
+        // Prepares a listener for onicecandidate events, and
+        // sends them to a mpsc channel
+        let (tx, rx) = futures_channel::mpsc::unbounded();
+        *self.ice_rx.borrow_mut() = Some(rx);
+        let handler: Box<dyn FnMut(_)> = Box::new(move |event: RtcPeerConnectionIceEvent| {
+            // This will send None when no more candidates are available
+            tx.unbounded_send(event.candidate()).unwrap();
+        });
+        set_event!(self.conn, handler, set_onicecandidate);
+    }
 
-        candidates
+    pub fn poll_ice_candidates(&self) -> Vec<IceCandidate> {
+        let mut ice_rx = self.ice_rx.borrow_mut();
+        let rx = match ice_rx.as_mut() {
+            Some(rx) => rx,
+            None => return vec![],
+        };
+
+        let mut candidates = vec![];
+        while let Ok(opt) = rx.try_next() {
+            match opt.flatten() {
+                Some(ice) => candidates.push(ice),
+                None => {
+                    ice_rx.take();
+                    break;
+                }
+            };
+        }
+
+        candidates.iter().map(ser_candidate).collect()
     }
 
     async fn create_sdp(&self, ty: RtcSdpType) -> Result<String, JsValue> {
@@ -209,13 +226,8 @@ impl Connection {
         Ok(answer)
     }
 
-    pub async fn prepare(
-        &self,
-        ty: RtcSdpType,
-        sdp: Option<String>,
-        remote_candidates: Vec<IceCandidate>,
-    ) -> Result<(String, Vec<IceCandidate>), JsValue> {
-        let rx = self.listen_ice_candidates();
+    pub async fn prepare(&self, ty: RtcSdpType, sdp: Option<String>) -> Result<String, JsValue> {
+        self.listen_ice_candidates();
 
         // Create SDP if not given
         let sdp = match sdp {
@@ -228,14 +240,6 @@ impl Connection {
         desc.sdp(&sdp);
         JsFuture::from(self.conn.set_local_description(&desc)).await?;
 
-        if !remote_candidates.is_empty() {
-            self.add_ice_candidates(remote_candidates).await?;
-        }
-
-        // Collect all candidates
-        let candidates = self.collect_ice_candidates(rx).await;
-        let candidates: Vec<_> = candidates.iter().map(ser_candidate).collect();
-
-        Ok((sdp, candidates))
+        Ok(sdp)
     }
 }
