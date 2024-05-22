@@ -155,4 +155,8 @@ impl Board {
             .find(|p| p.color == color && p.kind == PieceKind::King)
             .filter(|p| p.q != 0 || p.r != 0)
     }
+
+    pub fn get_piece(&self, idx: u8) -> Option<&Piece> {
+        self.pieces.get(idx as usize)
+    }
 }

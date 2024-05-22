@@ -1,17 +1,73 @@
 <div id="chat">
   <div class="messages"></div>
-  <input />
+  <input hidden />
 
   <div data-template="light" hidden>
     <div class="message">
-      <span class="badge rounded-pill text-bg-light" data-slot="name"></span>
-      <span data-slot="content"></span>
+      <span class="badge rounded-pill text-bg-light" data-slot="0"></span>
+      <span data-slot="1"></span>
     </div>
   </div>
   <div data-template="dark" hidden>
     <div class="message">
-      <span class="badge rounded-pill text-bg-dark" data-slot="name"></span>
-      <span data-slot="content"></span>
+      <span class="badge rounded-pill text-bg-dark" data-slot="0"></span>
+      <span data-slot="1"></span>
+    </div>
+  </div>
+
+  <div data-template="join" hidden>
+    <div class="message">
+      <span class="badge rounded-pill text-bg-info">SYSTEM</span>
+      Joined room with code
+      <span class="badge rounded-pill text-bg-info" data-slot="0"></span>.
+    </div>
+  </div>
+  <div data-template="start" hidden>
+    <div class="message">
+      <span class="badge rounded-pill text-bg-info">SYSTEM</span>
+      Game started
+    </div>
+  </div>
+  <div data-template="win-light" hidden>
+    <div class="message">
+      <span class="badge rounded-pill text-bg-info">SYSTEM</span>
+      Victory for
+      <span class="badge rounded-pill text-bg-light">light</span> player.
+    </div>
+  </div>
+  <div data-template="win-dark" hidden>
+    <div class="message">
+      <span class="badge rounded-pill text-bg-info">SYSTEM</span>
+      Victory for
+      <span class="badge rounded-pill text-bg-dark">dark</span> player.
+    </div>
+  </div>
+  <div data-template="expired-light" hidden>
+    <div class="message">
+      <span class="badge rounded-pill text-bg-info">SYSTEM</span>
+      Timer expired for
+      <span class="badge rounded-pill text-bg-light">light</span> player.
+    </div>
+  </div>
+  <div data-template="expired-dark" hidden>
+    <div class="message">
+      <span class="badge rounded-pill text-bg-info">SYSTEM</span>
+      Timer expired for
+      <span class="badge rounded-pill text-bg-dark">dark</span> player.
+    </div>
+  </div>
+  <div data-template="resign-light" hidden>
+    <div class="message">
+      <span class="badge rounded-pill text-bg-info">SYSTEM</span>
+      The <span class="badge rounded-pill text-bg-light">light</span> player
+      resigned.
+    </div>
+  </div>
+  <div data-template="resign-dark" hidden>
+    <div class="message">
+      <span class="badge rounded-pill text-bg-info">SYSTEM</span>
+      The <span class="badge rounded-pill text-bg-dark">dark</span> player
+      resigned.
     </div>
   </div>
 </div>

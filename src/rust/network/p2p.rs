@@ -86,7 +86,7 @@ impl Connection {
 
         let mut conf = RtcDataChannelInit::new();
         conf.id(0);
-        conf.negotiated(false);
+        conf.negotiated(true);
         let channel = conn.create_data_channel_with_data_channel_dict("chessagon", &conf);
         channel.set_binary_type(RtcDataChannelType::Arraybuffer);
 

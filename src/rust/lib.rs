@@ -1,3 +1,4 @@
+mod chat;
 mod game;
 mod glue;
 mod interface;

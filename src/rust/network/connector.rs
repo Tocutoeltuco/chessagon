@@ -32,13 +32,6 @@ async fn wait_for(delay: Duration) {
     rx.next().await;
 }
 
-fn run_at(at: SystemTime, closure: &Closure<dyn FnMut()>) -> f64 {
-    let delay = at
-        .duration_since(SystemTime::now())
-        .unwrap_or(Duration::from_millis(0));
-    run_in(delay, closure)
-}
-
 async fn wait_until(at: SystemTime) {
     let delay = at
         .duration_since(SystemTime::now())

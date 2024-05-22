@@ -415,7 +415,7 @@ async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .with_credentials(true)
         .with_methods([Method::Options, Method::Post])
         .with_origins(["*"])
-        .with_allowed_headers(["*"]);
+        .with_allowed_headers(["Authorization", "*"]);
 
     if matches!(req.method(), Method::Options) {
         let mut headers = Headers::new();

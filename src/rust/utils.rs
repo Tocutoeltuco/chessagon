@@ -1,3 +1,6 @@
+use rand::{rngs::SmallRng, SeedableRng};
+use web_time::{SystemTime, UNIX_EPOCH};
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Gamemode {
     Solo,
@@ -24,4 +27,12 @@ impl From<Gamemode> for u8 {
             Gamemode::Bot => 2,
         }
     }
+}
+
+pub fn new_rng() -> SmallRng {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("time travel?")
+        .as_millis() as u64;
+    SmallRng::seed_from_u64(now)
 }

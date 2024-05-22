@@ -13,7 +13,8 @@ use super::{
     piece::Color,
 };
 use crate::{
-    glue::{movePieces, removeTimers, setPieces, setTimers, Event},
+    chat::Chat,
+    glue::{hideChat, movePieces, removeTimers, setPieces, setTimers, showChat, Event},
     utils::Gamemode,
     Context,
 };
@@ -40,11 +41,15 @@ pub struct Controller {
     board: Board,
     is_host: bool,
     is_solo: bool,
+    is_connected: bool,
+    loaded_board: bool,
     color: Color,
     turn: Option<Color>,
     timer: Option<Duration>,
     light: Side,
     dark: Side,
+    name: String,
+    opp_name: String,
     highlight: HighlightController,
     selected_hex: Option<(u8, u8)>,
 }
@@ -56,6 +61,8 @@ impl Controller {
             board: Board::new(),
             is_host: false,
             is_solo: false,
+            is_connected: false,
+            loaded_board: false,
             color: Color::Light,
             turn: None,
             timer: None,
@@ -69,9 +76,41 @@ impl Controller {
                 time_left: None,
                 time_active_at: None,
             },
+            name: "".to_owned(),
+            opp_name: "".to_owned(),
             highlight: HighlightController::new(),
             selected_hex: None,
         }
+    }
+
+    fn get_color(&self, is_local: bool) -> Color {
+        if is_local {
+            self.color
+        } else {
+            self.color.opposite()
+        }
+    }
+
+    fn try_start(&self) {
+        if self.turn.is_some() {
+            return;
+        }
+
+        if !self.is_solo {
+            if !self.is_host {
+                return;
+            }
+
+            if !self.is_connected {
+                return;
+            }
+
+            if !self.loaded_board {
+                return;
+            }
+        }
+
+        self.ctx.handle(Event::GameStart);
     }
 
     fn check_winner(&mut self) -> Option<Color> {
@@ -142,9 +181,28 @@ impl Controller {
 
     pub fn on_event(&mut self, evt: &Event) {
         match evt {
+            Event::Connected(..) => {
+                self.is_connected = true;
+                self.try_start();
+            }
+            Event::Disconnected => {
+                self.is_connected = false;
+            }
             Event::SetGamemode(mode) => {
                 let mode: Gamemode = (*mode).into();
                 self.is_solo = mode == Gamemode::Solo;
+
+                if self.is_solo {
+                    hideChat();
+                } else {
+                    showChat();
+                }
+            }
+            Event::Register(name) => {
+                self.name = name.clone();
+            }
+            Event::Handshake(name) => {
+                self.opp_name = name.clone();
             }
             Event::JoinedRoom { is_host, .. } => {
                 self.is_host = *is_host;
@@ -153,12 +211,14 @@ impl Controller {
                 timer,
                 host_as_light,
             } => {
-                self.turn = Some(Color::Light);
                 self.color = if *host_as_light {
                     Color::Light
                 } else {
                     Color::Dark
                 };
+                if !self.is_solo && !self.is_host {
+                    self.color = self.color.opposite();
+                }
                 self.timer = if *timer > 0 {
                     Some(Duration::from_secs((*timer).into()))
                 } else {
@@ -171,16 +231,21 @@ impl Controller {
                 }
             }
             Event::LoadedBoard(board) => {
+                if !self.is_host {
+                    self.board.load_desc(board.clone());
+                }
                 setPieces(board.as_slice());
                 self.highlight.reset();
-
-                if self.is_host || self.is_solo {
-                    self.ctx.handle(Event::GameStart);
-                }
+                self.loaded_board = true;
+                self.try_start();
             }
             Event::HexClicked { q, r } => {
                 self.highlight.remove(Effect::Light);
-                if self.turn.is_none() {
+                let turn = match self.turn {
+                    Some(c) => c,
+                    None => return,
+                };
+                if turn != self.color {
                     return;
                 }
 
@@ -190,7 +255,7 @@ impl Controller {
                     if self.board.can_move(piece, *q, *r) {
                         // Move it if we can
                         self.ctx.handle(Event::Movement {
-                            from,
+                            piece: piece.idx,
                             to: (*q, *r),
                             is_local: true,
                         });
@@ -208,7 +273,11 @@ impl Controller {
 
                 self.highlight.send();
             }
-            Event::Movement { from, to, is_local } => {
+            Event::Movement {
+                piece,
+                to,
+                is_local,
+            } => {
                 if !is_local {
                     let valid = match self.turn {
                         Some(color) => color != self.color,
@@ -222,7 +291,7 @@ impl Controller {
                     }
                 }
 
-                let piece = match self.board.get_at(from.0, from.1) {
+                let piece = match self.board.get_piece(*piece) {
                     Some(p) => p,
                     None => {
                         // No piece at starting position.
@@ -237,7 +306,7 @@ impl Controller {
                     return;
                 }
 
-                movePieces(self.board.move_piece(*from, *to).as_slice());
+                movePieces(self.board.move_piece((piece.q, piece.r), *to).as_slice());
 
                 if let Some(winner) = self.check_winner() {
                     self.ctx.handle(Event::GameEnded {
@@ -249,16 +318,35 @@ impl Controller {
             }
             Event::TimerExpired => {
                 if let Some(loser) = self.turn {
-                    self.ctx.handle(Event::GameEnded {
-                        won_light: !loser.is_light(),
-                    });
+                    let loser = loser.is_light();
+                    Chat::timer_expired(loser);
+                    self.ctx.handle(Event::GameEnded { won_light: !loser });
                 }
+            }
+            Event::Resign(local) => {
+                let is_light = self.get_color(*local).is_light();
+                Chat::resign(is_light);
+                self.ctx.handle(Event::GameEnded {
+                    won_light: is_light,
+                });
+            }
+            Event::ChatMessage { is_local, content } => {
+                let color = self.get_color(*is_local);
+                let name = if *is_local {
+                    &self.name
+                } else {
+                    &self.opp_name
+                };
+                Chat::player_message(color.is_light(), name, content);
             }
             Event::GameStart => {
                 removeTimers();
                 self.light.time_left = self.timer;
                 self.dark.time_left = self.timer;
                 self.send_timers();
+                self.turn = Some(Color::Light);
+
+                Chat::game_start();
             }
             Event::GameEnded { won_light } => {
                 self.turn = None;
@@ -267,12 +355,7 @@ impl Controller {
                 self.dark.update_timer();
                 self.send_timers();
 
-                let color = if *won_light {
-                    Color::Light
-                } else {
-                    Color::Dark
-                };
-                log(&format!("game ended: {:?} won", color));
+                Chat::game_end(*won_light);
             }
             _ => {}
         };

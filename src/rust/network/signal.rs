@@ -109,7 +109,7 @@ impl SignalClient {
         obj.poll_with_signals(vec![Signal::JoinRoom(room.clone())])
             .await?;
 
-        if !obj.room.is_empty() || obj.peer_sdp.is_none() || obj.peer_ice.is_empty() {
+        if obj.room.is_empty() || obj.peer_sdp.is_none() || obj.peer_ice.is_empty() {
             panic!("couldn't join room");
         }
 

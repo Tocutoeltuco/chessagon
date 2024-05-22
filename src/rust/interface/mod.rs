@@ -3,8 +3,9 @@ mod names;
 use wasm_bindgen::prelude::*;
 
 use crate::{
+    chat::Chat,
     glue::{joinResponse, setPlayerName, setScene, Event},
-    utils::Gamemode,
+    utils::{new_rng, Gamemode},
     Context,
 };
 use names::new_name;
@@ -64,7 +65,7 @@ impl InterfacesManager {
         InterfacesManager {
             gamemode: Gamemode::Solo,
             scene: Scene::Gamemode,
-            name: new_name(),
+            name: new_name(&mut new_rng()),
             ctx: ctx.clone(),
         }
     }
@@ -118,6 +119,7 @@ impl InterfacesManager {
                 self.set_scene(Scene::Canvas);
             }
             Event::JoinedRoom { code, is_host } => {
+                Chat::join_room(code);
                 if !is_host {
                     joinResponse("success".to_owned());
                     self.set_scene(Scene::Canvas);

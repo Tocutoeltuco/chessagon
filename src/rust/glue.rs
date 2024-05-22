@@ -1,12 +1,14 @@
-use crate::network::{buffer::Buffer, p2p::Connection};
+use crate::network::{buffer::Buffer, p2p::Connection, packet::ChessPacket};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(module = "/src/rust/glue.js")]
 extern "C" {
     pub fn setScene(idx: i8);
+    pub fn showChat();
+    pub fn hideChat();
     pub fn setPlayerName(is_self: bool, name: String);
     pub fn joinResponse(resp: String);
-    pub fn addChatMessage(kind: String, name: String, content: String);
+    pub fn addChatMessage(kind: u8, slots: Vec<String>);
     pub fn setPieces(pieces: &[u16]);
     pub fn movePieces(pieces: &[u16]);
     pub fn highlight(hexes: &[u16]);
@@ -35,13 +37,17 @@ pub enum Event {
     Start,
     SetGamemode(u8),
     Register(String),
+    Handshake(String),
     CreateRoom,
     JoinRoom(String),
     SetSettings {
         timer: u16,
         host_as_light: bool,
     },
-    SendMessage(String),
+    ChatMessage {
+        is_local: bool,
+        content: String,
+    },
     MenuHidden(u8),
     HexClicked {
         q: u8,
@@ -56,7 +62,7 @@ pub enum Event {
     Disconnected,
     LoadedBoard(Vec<u16>),
     Movement {
-        from: (u8, u8),
+        piece: u8,
         to: (u8, u8),
         is_local: bool,
     },
@@ -65,6 +71,9 @@ pub enum Event {
     GameEnded {
         won_light: bool,
     },
+    PingRequest,
+    PacketReceived(ChessPacket),
+    Resign(bool),
 }
 
 impl Event {
@@ -80,7 +89,10 @@ impl Event {
                 timer: buf.read_u16().unwrap(),
                 host_as_light: buf.read_bool().unwrap(),
             },
-            JsEvent::SendMessage => Self::SendMessage(buf.read_js_string().unwrap()),
+            JsEvent::SendMessage => Self::ChatMessage {
+                is_local: true,
+                content: buf.read_js_string().unwrap(),
+            },
             JsEvent::MenuHidden => Self::MenuHidden(buf.read_u8().unwrap()),
             JsEvent::HexClicked => Self::HexClicked {
                 q: buf.read_u8().unwrap(),

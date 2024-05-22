@@ -5,7 +5,6 @@ const NET_VERSION: u8 = 0;
 
 #[derive(Debug, Clone)]
 pub enum ParseError {
-    EmptyPacket,
     MissingFields(String),
     UnknownPacket(u8),
     VersionMismatch(u8, u8),
@@ -14,7 +13,6 @@ pub enum ParseError {
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::EmptyPacket => write!(f, "packet is empty, EOL?"),
             Self::MissingFields(k) => write!(f, "missing a field of kind {}", k),
             Self::UnknownPacket(c) => write!(f, "unknown packet with code {}", c),
             Self::VersionMismatch(got, exp) => {
@@ -39,6 +37,7 @@ trait Packet: Sized {
     fn write(&self, buf: &mut Buffer);
 }
 
+#[derive(Debug)]
 pub struct Handshake {
     pub name: String,
 }
@@ -55,48 +54,18 @@ impl Packet for Handshake {
     }
 }
 
-pub struct Start {
-    pub timer: Option<u16>,
-    pub host_as_light: bool,
-    pub board: Vec<u16>,
-}
+#[derive(Debug)]
+pub struct Start {}
 impl Packet for Start {
     const CODE: u8 = 1;
 
-    fn read(mut data: Buffer) -> Result<Self, ParseError> {
-        let timer = match read!(data, read_u16) {
-            0 => None,
-            t => Some(t),
-        };
-        let host_as_light = read!(data, read_bool);
-
-        let mut board = Vec::new();
-        for _ in 0..read!(data, read_u8) {
-            board.push(read!(data, read_u16));
-        }
-
-        Ok(Start {
-            timer,
-            host_as_light,
-            board,
-        })
+    fn read(_: Buffer) -> Result<Self, ParseError> {
+        Ok(Start {})
     }
-    fn write(&self, data: &mut Buffer) {
-        data.write_u16(self.timer.unwrap_or(0))
-            .write_bool(self.host_as_light)
-            .write_u8(
-                self.board
-                    .len()
-                    .try_into()
-                    .expect("too many pieces in board"),
-            );
-
-        for piece in self.board.iter() {
-            data.write_u16(*piece);
-        }
-    }
+    fn write(&self, _: &mut Buffer) {}
 }
 
+#[derive(Debug)]
 pub struct ChatMessage {
     pub content: String,
 }
@@ -113,6 +82,7 @@ impl Packet for ChatMessage {
     }
 }
 
+#[derive(Debug)]
 pub struct Movement {
     pub idx: u8,
     pub q: u8,
@@ -141,6 +111,7 @@ impl Packet for Movement {
     }
 }
 
+#[derive(Debug)]
 pub struct Resign {}
 impl Packet for Resign {
     const CODE: u8 = 4;
@@ -151,6 +122,7 @@ impl Packet for Resign {
     fn write(&self, _: &mut Buffer) {}
 }
 
+#[derive(Debug)]
 pub struct Ping {
     pub request: Option<u16>,
     pub reply_to: Option<u16>,
@@ -184,6 +156,55 @@ impl Packet for Ping {
     }
 }
 
+#[derive(Debug)]
+pub struct SetBoard {
+    pub board: Vec<u16>,
+}
+impl Packet for SetBoard {
+    const CODE: u8 = 6;
+
+    fn read(mut data: Buffer) -> Result<Self, ParseError> {
+        let mut board = Vec::new();
+        for _ in 0..read!(data, read_u8) {
+            board.push(read!(data, read_u16));
+        }
+
+        Ok(SetBoard { board })
+    }
+    fn write(&self, data: &mut Buffer) {
+        data.write_u8(
+            self.board
+                .len()
+                .try_into()
+                .expect("too many pieces in board"),
+        );
+
+        for piece in self.board.iter() {
+            data.write_u16(*piece);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct SetSettings {
+    pub timer: u16,
+    pub host_as_light: bool,
+}
+impl Packet for SetSettings {
+    const CODE: u8 = 7;
+
+    fn read(mut data: Buffer) -> Result<Self, ParseError> {
+        Ok(SetSettings {
+            timer: read!(data, read_u16),
+            host_as_light: read!(data, read_bool),
+        })
+    }
+    fn write(&self, data: &mut Buffer) {
+        data.write_u16(self.timer).write_bool(self.host_as_light);
+    }
+}
+
+#[derive(Debug)]
 pub enum ChessPacket {
     Handshake(Handshake),
     Start(Start),
@@ -191,6 +212,8 @@ pub enum ChessPacket {
     Movement(Movement),
     Resign(Resign),
     Ping(Ping),
+    SetBoard(SetBoard),
+    SetSettings(SetSettings),
 }
 impl ChessPacket {
     pub fn read(mut data: Buffer) -> Result<ChessPacket, ParseError> {
@@ -206,6 +229,8 @@ impl ChessPacket {
             Movement::CODE => ChessPacket::Movement(Movement::read(data)?),
             Resign::CODE => ChessPacket::Resign(Resign::read(data)?),
             Ping::CODE => ChessPacket::Ping(Ping::read(data)?),
+            SetBoard::CODE => ChessPacket::SetBoard(SetBoard::read(data)?),
+            SetSettings::CODE => ChessPacket::SetSettings(SetSettings::read(data)?),
             code => {
                 return Err(ParseError::UnknownPacket(code));
             }
@@ -223,6 +248,8 @@ impl ChessPacket {
             ChessPacket::Movement(p) => p.write(data.write_u8(Movement::CODE)),
             ChessPacket::Resign(p) => p.write(data.write_u8(Resign::CODE)),
             ChessPacket::Ping(p) => p.write(data.write_u8(Ping::CODE)),
+            ChessPacket::SetBoard(p) => p.write(data.write_u8(SetBoard::CODE)),
+            ChessPacket::SetSettings(p) => p.write(data.write_u8(SetSettings::CODE)),
         };
 
         data
