@@ -393,8 +393,7 @@ async fn poll(mut req: Request, env: Env) -> Result<Response> {
     Response::from_json(&queue)
 }
 
-#[event(fetch)]
-async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
+async fn handle(req: Request, env: Env) -> Result<Response> {
     if !matches!(req.method(), Method::Post) {
         return Response::error("Method Not Allowed", 405);
     }
@@ -407,6 +406,23 @@ async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     }
 
     Response::error("Page Not Found", 404)
+}
+
+#[event(fetch)]
+async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
+    let cors = Cors::new()
+        .with_max_age(86400)
+        .with_credentials(true)
+        .with_methods([Method::Options, Method::Post])
+        .with_origins(["*"])
+        .with_allowed_headers(["*"]);
+
+    if matches!(req.method(), Method::Options) {
+        let mut headers = Headers::new();
+        headers.set("Allow", "OPTIONS, POST")?;
+        return Response::empty()?.with_headers(headers).with_cors(&cors);
+    }
+    handle(req, env).await?.with_cors(&cors)
 }
 
 #[event(scheduled)]
