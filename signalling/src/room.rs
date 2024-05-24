@@ -247,6 +247,32 @@ impl Room {
         queue.push(Signal::NextPoll(*next_poll));
         queue
     }
+
+    pub fn is_done(&self) -> bool {
+        // not both peers are connected
+        if self.meta.answer.is_none() {
+            return false;
+        }
+
+        let data = self.data.as_ref().expect("invalid state");
+        // didnt fully establish a p2p connection yet
+        if !data.sent_connect {
+            return false;
+        }
+
+        // not all ice candidates were sent
+        if !data.offer.ice_done || !data.answer.ice_done {
+            return false;
+        }
+
+        // messages still in queue
+        if !data.offer.queue.is_empty() || !data.answer.queue.is_empty() {
+            return false;
+        }
+
+        // the room is done: both peers established a p2p connection
+        true
+    }
 }
 
 impl Killable for Room {

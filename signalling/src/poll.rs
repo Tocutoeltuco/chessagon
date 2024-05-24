@@ -75,10 +75,16 @@ pub async fn poll(mut req: Request, env: Env) -> Result<Response> {
         Some(code) => {
             // User is in room
             do_poll = true;
-            match Room::load(&bucket, code).await? {
+            let room = match Room::load(&bucket, code).await? {
                 Some(room) => room,
                 None => return Response::error("Room expired.", 400),
+            };
+
+            if room.is_done() {
+                return Response::error("Room expired.", 400);
             }
+
+            room
         }
         None => {
             // User is not in room. They're creating or joining.
