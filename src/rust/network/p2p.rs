@@ -153,7 +153,8 @@ impl Connection {
         *self.ice_rx.borrow_mut() = Some(rx);
         let handler: Box<dyn FnMut(_)> = Box::new(move |event: RtcPeerConnectionIceEvent| {
             // This will send None when no more candidates are available
-            tx.unbounded_send(event.candidate()).unwrap();
+            let candidate = event.candidate().filter(|c| !c.candidate().is_empty());
+            tx.unbounded_send(candidate).unwrap();
         });
         set_event!(self.conn, handler, set_onicecandidate);
     }
@@ -168,15 +169,17 @@ impl Connection {
         let mut candidates = vec![];
         while let Ok(opt) = rx.try_next() {
             match opt.flatten() {
-                Some(ice) => candidates.push(ice),
+                Some(ice) => candidates.push(ser_candidate(&ice)),
                 None => {
+                    // Push end of list
+                    candidates.push(("".to_owned(), Some("".to_owned()), Some(0)));
                     ice_rx.take();
                     break;
                 }
             };
         }
 
-        candidates.iter().map(ser_candidate).collect()
+        candidates
     }
 
     async fn create_sdp(&self, ty: RtcSdpType) -> Result<String, JsValue> {
