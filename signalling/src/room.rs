@@ -31,7 +31,7 @@ pub struct Peer {
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct RoomData {
-    connect_at: Option<SystemTime>,
+    sent_connect: bool,
     offer: Peer,
     answer: Peer,
 }
@@ -144,13 +144,13 @@ impl Room {
     }
 
     pub fn poll(&mut self, peer: &Auth) {
-        let data = self.data.as_ref().expect("invalid state");
-        let now = SystemTime::now();
-        let next_poll = match data.connect_at {
-            // FAST_POLL *after* connect_at
-            Some(at) => now.max(at) + Duration::from_secs(FAST_POLL),
-            None => now + Duration::from_secs(POLL),
+        let duration = if self.meta.answer.is_some() {
+            // Fast polling after both parties are connected
+            Duration::from_secs(FAST_POLL)
+        } else {
+            Duration::from_secs(POLL)
         };
+        let next_poll = SystemTime::now() + duration;
 
         if self.meta.offer.token == peer.key {
             self.meta.offer.next_poll = next_poll;
@@ -164,7 +164,7 @@ impl Room {
     fn try_set_connect(&mut self) {
         let data = self.data.as_mut().expect("invalid state");
 
-        if data.connect_at.is_some() {
+        if data.sent_connect {
             return;
         }
         // Need both SDPs
@@ -181,7 +181,7 @@ impl Room {
         let connect_at = offer.max(answer) + Duration::from_secs(CONNECT);
 
         let signal = Signal::ConnectAt(connect_at);
-        data.connect_at = Some(connect_at);
+        data.sent_connect = true;
         data.offer.queue.push(signal.clone());
         data.answer.queue.push(signal.clone());
 
