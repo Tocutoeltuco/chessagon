@@ -92,15 +92,14 @@ impl Piece {
     pub fn available(&self) -> DirectionIterator {
         if self.kind == PieceKind::Pawn {
             let direction = if self.color.is_light() { -1 } else { 1 };
-            let repeat = match (self.color, self.q, self.r) {
-                // Light pawn starting squares
-                (Color::Light, q, 6) if q > 4 => 2,
-                (Color::Light, q, r) if r == 11 - q => 2,
-                // Dark pawn starting squares
-                (Color::Dark, q, 4) if q < 6 => 2,
-                (Color::Dark, q, r) if r == 9 - q => 2,
-                _ => 1,
+            let repeat = if self.color.is_light() {
+                // Light pawn starting hexes
+                (self.r == 6 && self.q > 4) || (self.r > 6 && self.q + self.r == 11)
+            } else {
+                // Dark pawn starting hexes
+                (self.r == 4 && self.q < 6) || (self.r < 5 && self.q + self.r == 9)
             };
+            let repeat = if repeat { 2 } else { 1 };
 
             return DirectionIterator::new(self.q, self.r, vec![(0, direction, repeat)]);
         }
