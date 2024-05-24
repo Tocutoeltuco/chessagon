@@ -1,5 +1,4 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{window, Request, RequestInit, RequestMode, Response};
