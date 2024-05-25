@@ -1,7 +1,7 @@
 import { ctx } from "./state";
 
 const container = document.getElementById("game-buttons");
-const buttons = ["resign", "play"];
+const buttons = ["resign", "play", "back"];
 
 for (let i = 0; i < buttons.length; i++) {
   const name = buttons[i];

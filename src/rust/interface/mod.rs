@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::{
     chat::Chat,
-    glue::{joinResponse, setPlayerName, setScene, Button, Event},
+    glue::{joinResponse, setPlayerName, setScene, showButtons, Button, Event},
     utils::{new_rng, Gamemode},
     Context,
 };
@@ -73,6 +73,9 @@ impl InterfacesManager {
     fn set_scene(&mut self, scene: Scene) {
         self.scene = scene;
         setScene(self.scene.into());
+        if scene != Scene::Canvas {
+            showButtons(&[]);
+        }
     }
 
     fn menu_hidden(&mut self) {
@@ -118,11 +121,19 @@ impl InterfacesManager {
             Event::SetSettings { .. } => {
                 self.set_scene(Scene::Canvas);
             }
-            Event::GameButtonClick(btn) => {
-                if *btn == Button::PlayAgain {
+            Event::GameButtonClick(btn) => match btn {
+                Button::PlayAgain => {
                     self.set_scene(Scene::Settings);
                 }
-            }
+                Button::LeaveRoom => {
+                    if self.gamemode == Gamemode::Solo {
+                        self.set_scene(Scene::Gamemode);
+                    } else {
+                        self.set_scene(Scene::Online);
+                    }
+                }
+                _ => {}
+            },
             Event::JoinedRoom { code, is_host } => {
                 Chat::join_room(code);
                 if !is_host {

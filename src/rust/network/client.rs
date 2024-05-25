@@ -10,7 +10,7 @@ use super::packet::{
     Start,
 };
 use crate::chat::Chat;
-use crate::glue::{addRTT, setPlayerName, Event};
+use crate::glue::{addRTT, setPlayerName, Button, Event};
 use crate::utils::new_rng;
 use crate::Context;
 
@@ -339,6 +339,9 @@ impl Client {
                         .write(),
                     )
                 }
+            }
+            Event::GameButtonClick(Button::LeaveRoom) => {
+                self.ctx.handle(Event::Disconnected);
             }
             _ => {}
         };

@@ -412,17 +412,20 @@ impl Controller {
                 self.light.time_left = self.timer;
                 self.dark.time_left = self.timer;
                 self.send_timers();
+                self.promoting = None;
                 self.turn = Some(Color::Light);
 
                 Chat::game_start();
                 if !self.is_solo {
-                    showButtons(&[Button::Resign.into()]);
+                    showButtons(&[Button::LeaveRoom.into(), Button::Resign.into()]);
                 } else {
-                    showButtons(&[]);
+                    self.color = Color::Light;
+                    showButtons(&[Button::LeaveRoom.into()]);
                 }
             }
             Event::GameEnded { won_light } => {
                 self.turn = None;
+                self.promoting = None;
 
                 self.light.update_timer();
                 self.dark.update_timer();
@@ -430,16 +433,21 @@ impl Controller {
 
                 Chat::game_end(*won_light);
                 if self.is_solo || self.is_host {
-                    showButtons(&[Button::PlayAgain.into()]);
+                    showButtons(&[Button::LeaveRoom.into(), Button::PlayAgain.into()]);
                 } else {
-                    showButtons(&[]);
+                    showButtons(&[Button::LeaveRoom.into()]);
                 }
             }
-            Event::GameButtonClick(btn) => {
-                if *btn == Button::Resign {
+            Event::GameButtonClick(btn) => match btn {
+                Button::Resign => {
                     self.ctx.handle(Event::Resign(true));
                 }
-            }
+                Button::LeaveRoom => {
+                    self.turn = None;
+                    self.promoting = None;
+                }
+                _ => {}
+            },
             Event::PromotionPrompt(idx) => {
                 let piece = match self.board.get_piece(*idx) {
                     Some(piece) => piece,

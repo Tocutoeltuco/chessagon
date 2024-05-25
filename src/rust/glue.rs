@@ -25,6 +25,7 @@ extern "C" {
 pub enum Button {
     Resign,
     PlayAgain,
+    LeaveRoom,
 }
 
 impl From<u8> for Button {
@@ -32,6 +33,7 @@ impl From<u8> for Button {
         match value {
             0 => Self::Resign,
             1 => Self::PlayAgain,
+            2 => Self::LeaveRoom,
             _ => panic!("invalid button"),
         }
     }
@@ -42,6 +44,7 @@ impl From<Button> for u8 {
         match value {
             Button::Resign => 0,
             Button::PlayAgain => 1,
+            Button::LeaveRoom => 2,
         }
     }
 }

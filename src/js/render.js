@@ -8,7 +8,6 @@ import { drawGraph, GraphData } from "./graph";
 const canvas = document.getElementById("board");
 const graphs = new GraphData();
 let firstShow = false;
-let frameRequest;
 /**
  * @typedef {{count: number, activatedAt: number?}} Timer
  */
@@ -107,7 +106,7 @@ const render = () => {
   graphs.addData("fps", 1);
   graphs.addData("renderTime", end - start);
 
-  frameRequest = requestAnimationFrame(render);
+  if (!canvas.hidden) requestAnimationFrame(render);
 };
 
 export const removeTimers = () => {
@@ -152,13 +151,14 @@ export const show = () => {
     handler();
     window.visualViewport.onresize = handler;
   }
+  console.log("show");
 
   canvas.hidden = false;
   resetMouseState();
-  frameRequest = requestAnimationFrame(render);
+  requestAnimationFrame(render);
 };
 
 export const hide = () => {
+  console.log("hide");
   canvas.hidden = true;
-  cancelAnimationFrame(render);
 };
