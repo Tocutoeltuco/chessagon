@@ -191,10 +191,12 @@ impl Controller {
                 self.try_start();
             }
             Event::Disconnected => {
-                self.is_connected = false;
-                self.turn = None;
-                Chat::disconnected();
-                hideChat();
+                if self.is_connected {
+                    self.is_connected = false;
+                    self.turn = None;
+                    Chat::disconnected();
+                    hideChat();
+                }
             }
             Event::SetGamemode(mode) => {
                 let mode: Gamemode = (*mode).into();
