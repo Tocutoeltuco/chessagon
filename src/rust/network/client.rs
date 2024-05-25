@@ -6,7 +6,8 @@ use web_time::Instant;
 use super::connector::Connector;
 use super::p2p::Connection;
 use super::packet::{
-    ChatMessage, ChessPacket, Handshake, Movement, Ping, Resign, SetBoard, SetSettings, Start,
+    ChatMessage, ChessPacket, Handshake, Movement, Ping, Promote, Resign, SetBoard, SetSettings,
+    Start,
 };
 use crate::chat::Chat;
 use crate::glue::{addRTT, setPlayerName, Event};
@@ -177,6 +178,13 @@ impl Client {
                     host_as_light: p.host_as_light,
                 });
             }
+            ChessPacket::Promote(p) => {
+                self.ctx.handle(Event::Promotion {
+                    piece: p.idx,
+                    kind: p.kind,
+                    is_local: false,
+                });
+            }
         };
     }
 
@@ -313,7 +321,25 @@ impl Client {
                     conn.send(ChessPacket::Resign(Resign {}).write());
                 }
             }
+            Event::Promotion {
+                piece,
+                kind,
+                is_local,
+            } => {
+                if !*is_local {
+                    return;
+                }
 
+                if let Some(conn) = &self.conn {
+                    conn.send(
+                        ChessPacket::Promote(Promote {
+                            idx: *piece,
+                            kind: *kind,
+                        })
+                        .write(),
+                    )
+                }
+            }
             _ => {}
         };
     }

@@ -159,4 +159,8 @@ impl Board {
     pub fn get_piece(&self, idx: u8) -> Option<&Piece> {
         self.pieces.get(idx as usize)
     }
+
+    pub fn get_piece_mut(&mut self, idx: u8) -> Option<&mut Piece> {
+        self.pieces.get_mut(idx as usize)
+    }
 }

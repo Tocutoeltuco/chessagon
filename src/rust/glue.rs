@@ -12,6 +12,8 @@ extern "C" {
     pub fn setPieces(pieces: &[u16]);
     pub fn movePieces(pieces: &[u16]);
     pub fn highlight(hexes: &[u16]);
+    pub fn promotePieces(pieces: &[u16]);
+    pub fn showPromotionPrompt(color: u8, q: u8, r: u8);
     pub fn setTimers(light: u16, dark: u16, active: i8);
     pub fn removeTimers();
     pub fn addRTT(rtt: i32);
@@ -58,6 +60,7 @@ pub enum JsEvent {
     HexClicked,
     TimerExpired,
     GameButtonClick,
+    PromotionResponse,
 }
 
 #[derive(Debug)]
@@ -103,6 +106,13 @@ pub enum Event {
     PacketReceived(ChessPacket),
     Resign(bool),
     GameButtonClick(Button),
+    PromotionPrompt(u8),
+    PromotionResponse(u8),
+    Promotion {
+        piece: u8,
+        kind: u8,
+        is_local: bool,
+    },
 }
 
 impl Event {
@@ -129,6 +139,7 @@ impl Event {
             },
             JsEvent::TimerExpired => Self::TimerExpired,
             JsEvent::GameButtonClick => Self::GameButtonClick(buf.read_u8().unwrap().into()),
+            JsEvent::PromotionResponse => Self::PromotionResponse(buf.read_u8().unwrap()),
         }
     }
 }

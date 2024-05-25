@@ -10,13 +10,13 @@ extern "C" {
 use super::{
     board::Board,
     highlight::{Effect, HighlightController},
-    piece::Color,
+    piece::{Color, PieceKind},
 };
 use crate::{
     chat::Chat,
     glue::{
         hideChat, movePieces, removeTimers, setBoardPerspective, setPieces, setTimers, showButtons,
-        showChat, Button, Event,
+        showChat, showPromotionPrompt, Button, Event,
     },
     utils::Gamemode,
     Context,
@@ -55,6 +55,7 @@ pub struct Controller {
     opp_name: String,
     highlight: HighlightController,
     selected_hex: Option<(u8, u8)>,
+    promoting: Option<u8>,
 }
 
 impl Controller {
@@ -83,6 +84,7 @@ impl Controller {
             opp_name: "".to_owned(),
             highlight: HighlightController::new(),
             selected_hex: None,
+            promoting: None,
         }
     }
 
@@ -245,6 +247,9 @@ impl Controller {
             }
             Event::HexClicked { q, r } => {
                 self.highlight.remove(Effect::Light);
+                if self.promoting.is_some() {
+                    return;
+                }
                 let turn = match self.turn {
                     Some(c) => c,
                     None => return,
@@ -278,27 +283,29 @@ impl Controller {
                 self.highlight.send();
             }
             Event::Movement {
-                piece,
+                piece: idx,
                 to,
                 is_local,
             } => {
-                if !is_local {
-                    let valid = match self.turn {
-                        Some(color) => color != self.color,
-                        None => false,
-                    };
-
-                    if !valid {
-                        // Not peer's turn.
-                        self.ctx.handle(Event::Disconnected);
+                let turn = match self.turn {
+                    Some(color) => color,
+                    None => {
+                        if !is_local {
+                            self.ctx.handle(Event::Disconnected);
+                        }
                         return;
                     }
+                };
+                if !is_local && turn == self.color {
+                    // Not peer's turn.
+                    self.ctx.handle(Event::Disconnected);
+                    return;
                 }
 
-                let piece = match self.board.get_piece(*piece) {
-                    Some(p) => p,
-                    None => {
-                        // No piece at starting position.
+                let piece = match self.board.get_piece(*idx) {
+                    Some(p) if p.color == turn => p,
+                    _ => {
+                        // Invalid piece
                         self.ctx.handle(Event::Disconnected);
                         return;
                     }
@@ -318,6 +325,61 @@ impl Controller {
                     });
                     return;
                 }
+
+                let piece = self.board.get_piece(*idx).unwrap();
+                if piece.can_promote() {
+                    if *is_local {
+                        self.ctx.handle(Event::PromotionPrompt(*idx));
+                    }
+                } else {
+                    self.switch_turns();
+                }
+            }
+            Event::Promotion {
+                piece,
+                kind,
+                is_local,
+            } => {
+                let turn = match self.turn {
+                    Some(color) => color,
+                    None => {
+                        if !is_local {
+                            self.ctx.handle(Event::Disconnected);
+                        }
+                        return;
+                    }
+                };
+                if !is_local && turn == self.color {
+                    // Not peer's turn.
+                    self.ctx.handle(Event::Disconnected);
+                    return;
+                }
+
+                let kind: PieceKind = (*kind).into();
+                if !matches!(
+                    kind,
+                    PieceKind::Queen | PieceKind::Knight | PieceKind::Rook | PieceKind::Bishop
+                ) {
+                    // Invalid promotion.
+                    self.ctx.handle(Event::Disconnected);
+                    return;
+                }
+
+                let piece = match self.board.get_piece_mut(*piece) {
+                    Some(p) if p.color == turn => p,
+                    _ => {
+                        // Invalid piece
+                        self.ctx.handle(Event::Disconnected);
+                        return;
+                    }
+                };
+
+                if !piece.can_promote() {
+                    // Invalid promotion.
+                    self.ctx.handle(Event::Disconnected);
+                    return;
+                }
+                piece.promote(kind);
                 self.switch_turns();
             }
             Event::TimerExpired => {
@@ -375,6 +437,29 @@ impl Controller {
                 if *btn == Button::Resign {
                     self.ctx.handle(Event::Resign(true));
                 }
+            }
+            Event::PromotionPrompt(idx) => {
+                let piece = match self.board.get_piece(*idx) {
+                    Some(piece) => piece,
+                    None => return,
+                };
+
+                self.promoting = Some(*idx);
+                showPromotionPrompt(piece.color as u8, piece.q, piece.r);
+            }
+            Event::PromotionResponse(kind) => {
+                let piece = match self.promoting.take().and_then(|i| self.board.get_piece(i)) {
+                    Some(p) => p,
+                    None => return,
+                };
+                if !piece.can_promote() {
+                    return;
+                }
+                self.ctx.handle(Event::Promotion {
+                    piece: piece.idx,
+                    kind: *kind,
+                    is_local: true,
+                });
             }
             _ => {}
         };

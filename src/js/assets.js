@@ -63,13 +63,14 @@ export class AssetManager {
   /**
    * Fetches an asset. Creates an Image and then saves it.
    * @param {string} url
+   * @param {string | undefined} name
    * @returns {Promise<Image>} content
    */
-  fetchAndSave(url) {
+  fetchAndSave(url, name) {
     const id = this._markLoading();
     return new Promise((resolve, reject) => {
       this._fetch(url)
-        .then((content) => this.create(url, content))
+        .then((content) => this.create(name || url, content))
         .then((img) => {
           this._markDone(id);
           resolve(img);

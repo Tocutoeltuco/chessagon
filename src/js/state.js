@@ -1,9 +1,7 @@
 import { setup, JsEvent } from "../../pkg/index";
-import { AssetManager } from "./assets";
 import { Board } from "./board";
 
-export const assets = new AssetManager();
-export const board = new Board(11, assets);
+export const board = new Board();
 
 const wasm = setup();
 class JsContext {
@@ -60,6 +58,10 @@ class JsContext {
 
   gameButtonClick(id) {
     wasm.dispatch(JsEvent.GameButtonClick, new Uint8Array([id]));
+  }
+
+  promotionResponse(kind) {
+    wasm.dispatch(JsEvent.PromotionResponse, new Uint8Array([kind]));
   }
 }
 

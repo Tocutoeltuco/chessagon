@@ -205,6 +205,25 @@ impl Packet for SetSettings {
 }
 
 #[derive(Debug)]
+pub struct Promote {
+    pub idx: u8,
+    pub kind: u8,
+}
+impl Packet for Promote {
+    const CODE: u8 = 8;
+
+    fn read(mut data: Buffer) -> Result<Self, ParseError> {
+        Ok(Promote {
+            idx: read!(data, read_u8),
+            kind: read!(data, read_u8),
+        })
+    }
+    fn write(&self, data: &mut Buffer) {
+        data.write_u8(self.idx).write_u8(self.kind);
+    }
+}
+
+#[derive(Debug)]
 pub enum ChessPacket {
     Handshake(Handshake),
     Start(Start),
@@ -214,6 +233,7 @@ pub enum ChessPacket {
     Ping(Ping),
     SetBoard(SetBoard),
     SetSettings(SetSettings),
+    Promote(Promote),
 }
 impl ChessPacket {
     pub fn read(mut data: Buffer) -> Result<ChessPacket, ParseError> {
@@ -231,6 +251,7 @@ impl ChessPacket {
             Ping::CODE => ChessPacket::Ping(Ping::read(data)?),
             SetBoard::CODE => ChessPacket::SetBoard(SetBoard::read(data)?),
             SetSettings::CODE => ChessPacket::SetSettings(SetSettings::read(data)?),
+            Promote::CODE => ChessPacket::Promote(Promote::read(data)?),
             code => {
                 return Err(ParseError::UnknownPacket(code));
             }
@@ -250,6 +271,7 @@ impl ChessPacket {
             ChessPacket::Ping(p) => p.write(data.write_u8(Ping::CODE)),
             ChessPacket::SetBoard(p) => p.write(data.write_u8(SetBoard::CODE)),
             ChessPacket::SetSettings(p) => p.write(data.write_u8(SetSettings::CODE)),
+            ChessPacket::Promote(p) => p.write(data.write_u8(Promote::CODE)),
         };
 
         data

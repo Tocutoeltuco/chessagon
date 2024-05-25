@@ -90,7 +90,7 @@ const render = () => {
   if (timers) {
     const margin = 20;
     let [top, bot] = [timers.dark, timers.light];
-    if (board.flipped) {
+    if (board.main.flipped) {
       [top, bot] = [bot, top];
     }
     drawTimer(ctx, margin, top, "top");
@@ -143,12 +143,14 @@ export const addRTT = (time) => {
 export const show = () => {
   if (!firstShow) {
     firstShow = true;
-    window.visualViewport.onresize = () => {
+    const handler = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
 
       board.resize();
     };
+    handler();
+    window.visualViewport.onresize = handler;
   }
 
   canvas.hidden = false;

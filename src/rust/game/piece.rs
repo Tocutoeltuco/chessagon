@@ -1,4 +1,7 @@
-use crate::game::directions::{DirectionIterator, BISHOP, KING, KNIGHT, QUEEN, ROOK};
+use crate::{
+    game::directions::{DirectionIterator, BISHOP, KING, KNIGHT, QUEEN, ROOK},
+    glue::promotePieces,
+};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u8)]
@@ -87,6 +90,39 @@ impl Piece {
         let idx: u16 = self.idx.into();
 
         idx << 8 | q << 4 & 0xf0 | r & 0xf
+    }
+
+    pub fn is_captured(&self) -> bool {
+        self.r == 0 && self.q == 0
+    }
+
+    pub fn can_promote(&self) -> bool {
+        if self.kind != PieceKind::Pawn {
+            return false;
+        }
+        if self.is_captured() {
+            return false;
+        }
+
+        let row;
+        let col;
+        if self.color.is_light() {
+            row = 0;
+            col = 5;
+        } else {
+            row = 10;
+            col = 15;
+        }
+
+        self.r == row || (self.q + self.r) == col
+    }
+
+    pub fn promote(&mut self, kind: PieceKind) {
+        self.kind = kind;
+        let idx: u16 = self.idx.into();
+        let kind: u16 = (kind as u8).into();
+
+        promotePieces(&[kind << 8 | idx]);
     }
 
     pub fn available(&self) -> DirectionIterator {
