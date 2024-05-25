@@ -113,6 +113,10 @@ impl Connector {
 
     async fn wait_for_connect(&mut self, conn: &Connection, drain: bool) -> Result<(), JsValue> {
         while self.signal.connect_at.is_none() {
+            if !self.signal.can_poll() {
+                panic!("can't poll but didn't connect?");
+            }
+
             self.poll(conn).await?;
             if drain {
                 self.drain_ice(conn).await?;
@@ -126,8 +130,8 @@ impl Connector {
         Ok(())
     }
 
-    async fn poll_until_connected(&mut self, conn: &Connection) -> Result<(), JsValue> {
-        while !conn.is_open() {
+    async fn poll_until_done(&mut self, conn: &Connection) -> Result<(), JsValue> {
+        while self.signal.can_poll() {
             self.poll(conn).await?;
             self.drain_ice(conn).await?;
         }
@@ -152,7 +156,7 @@ impl Connector {
         conn.set_remote(RtcSdpType::Answer, self.signal.peer_sdp.clone().unwrap())
             .await?;
 
-        self.poll_until_connected(&conn).await?;
+        self.poll_until_done(&conn).await?;
         Ok(())
     }
 
@@ -179,7 +183,7 @@ impl Connector {
         conn.prepare(RtcSdpType::Answer, Some(sdp)).await?;
         self.drain_ice(&conn).await?;
 
-        self.poll_until_connected(&conn).await?;
+        self.poll_until_done(&conn).await?;
         Ok(())
     }
 

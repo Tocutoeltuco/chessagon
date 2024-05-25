@@ -79,6 +79,8 @@ pub struct SignalClient {
     pub connect_at: Option<Instant>,
     signal_queue: Vec<Signal>,
     next_poll: Instant,
+    sent_all_ice: bool,
+    recv_all_ice: bool,
 }
 
 impl SignalClient {
@@ -92,6 +94,8 @@ impl SignalClient {
             connect_at: None,
             signal_queue: vec![],
             next_poll: Instant::now(),
+            sent_all_ice: false,
+            recv_all_ice: false,
         }
     }
 
@@ -105,6 +109,9 @@ impl SignalClient {
                     self.peer_sdp = Some(s.to_string());
                 }
                 Signal::AddCandidate(c) => {
+                    if c.0.is_empty() {
+                        self.recv_all_ice = true;
+                    }
                     self.peer_ice.push(c);
                 }
                 Signal::ConnectAt(d) => {
@@ -125,7 +132,15 @@ impl SignalClient {
         self.next_poll = Instant::now() + Duration::from_secs(10);
     }
 
+    pub fn can_poll(&self) -> bool {
+        !self.sent_all_ice || !self.recv_all_ice
+    }
+
     pub async fn poll(&mut self) -> Result<(), JsValue> {
+        if !self.can_poll() {
+            return Ok(());
+        }
+
         // Ident if not already
         let token = match self.token.as_ref() {
             Some(t) => t,
@@ -139,6 +154,16 @@ impl SignalClient {
 
         // Move all values from queue
         let signals: Vec<_> = self.signal_queue.drain(0..).collect();
+        if signals
+            .iter()
+            .filter_map(|s| match s {
+                Signal::AddCandidate(ice) => Some(ice),
+                _ => None,
+            })
+            .any(|i| i.0.is_empty())
+        {
+            self.sent_all_ice = true;
+        }
         let signals = poll(&self.url, token, signals).await?;
         self.handle_signals(signals);
 

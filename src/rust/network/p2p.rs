@@ -73,7 +73,6 @@ pub struct Connection {
     conn: RtcPeerConnection,
     channel: RtcDataChannel,
     ice_rx: Rc<RefCell<Option<futures_channel::mpsc::UnboundedReceiver<Option<RtcIceCandidate>>>>>,
-    open: Rc<RefCell<bool>>,
 }
 
 impl Connection {
@@ -97,12 +96,10 @@ impl Connection {
             conn,
             channel,
             ice_rx: Default::default(),
-            open: Default::default(),
         }
     }
 
     pub fn close(&self) {
-        *self.open.borrow_mut() = false;
         self.channel.set_onopen(None);
         self.channel.set_onmessage(None);
         self.channel.set_onclose(None);
@@ -117,9 +114,7 @@ impl Connection {
     }
 
     pub fn set_onopen(&self, mut handler: Box<dyn FnMut()>) {
-        let open = self.open.clone();
         let handler: Box<dyn FnMut(_)> = Box::new(move |_event: RtcDataChannelEvent| {
-            *open.borrow_mut() = false;
             handler();
         });
         set_event!(self.channel, handler, set_onopen);
@@ -134,16 +129,10 @@ impl Connection {
     }
 
     pub fn set_onclose(&self, mut handler: Box<dyn FnMut()>) {
-        let open = self.open.clone();
         let handler: Box<dyn FnMut(_)> = Box::new(move |_event: Event| {
-            *open.borrow_mut() = false;
             handler();
         });
         set_event!(self.channel, handler, set_onclose);
-    }
-
-    pub fn is_open(&self) -> bool {
-        *self.open.borrow()
     }
 
     fn listen_ice_candidates(&self) {
