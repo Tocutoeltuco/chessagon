@@ -1,4 +1,5 @@
 use futures::Future;
+use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::RtcSdpType;
@@ -42,6 +43,7 @@ where
 
 pub struct Connector {
     signal: SignalClient,
+    kill_channel: Option<UnboundedReceiver<()>>,
     onestablishing: Option<Box<dyn FnMut()>>,
     onopen: Option<Box<dyn FnMut(&Connection)>>,
     onmessage: Option<Box<dyn FnMut(&Connection, Buffer)>>,
@@ -54,6 +56,7 @@ impl Connector {
     pub fn new() -> Self {
         Connector {
             signal: SignalClient::new(SERVER),
+            kill_channel: None,
             onestablishing: None,
             onopen: None,
             onmessage: None,
@@ -104,8 +107,20 @@ impl Connector {
         Ok(())
     }
 
+    fn check_dead(&mut self, conn: &Connection) -> Result<(), JsValue> {
+        let channel = self.kill_channel.as_mut().unwrap();
+        if channel.try_next().is_err() {
+            // No message received, and channel is not dropped.
+            return Ok(());
+        }
+
+        conn.close();
+        Err(JsValue::from_str("killed connector"))
+    }
+
     async fn poll(&mut self, conn: &Connection) -> Result<(), JsValue> {
         self.signal.wait_for_poll().await;
+        self.check_dead(conn)?;
         self.signal.send_ice(conn.poll_ice_candidates());
         self.signal.poll().await?;
         Ok(())
@@ -187,11 +202,21 @@ impl Connector {
         Ok(())
     }
 
-    pub fn start_as_host(mut self) {
-        spawn_local(wrap(self.onerror.take(), self.run_as_host()));
+    fn start_kill_channel(&mut self) -> UnboundedSender<()> {
+        let (tx, rx) = futures_channel::mpsc::unbounded();
+        self.kill_channel = Some(rx);
+        tx
     }
 
-    pub fn start_as_guest(mut self, code: String) {
+    pub fn start_as_host(mut self) -> UnboundedSender<()> {
+        let tx = self.start_kill_channel();
+        spawn_local(wrap(self.onerror.take(), self.run_as_host()));
+        tx
+    }
+
+    pub fn start_as_guest(mut self, code: String) -> UnboundedSender<()> {
+        let tx = self.start_kill_channel();
         spawn_local(wrap(self.onerror.take(), self.run_as_guest(code)));
+        tx
     }
 }

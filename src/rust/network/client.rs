@@ -1,6 +1,9 @@
+use futures::SinkExt;
+use futures_channel::mpsc::UnboundedSender;
 use rand::rngs::SmallRng;
 use rand::RngCore;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::spawn_local;
 use web_time::Instant;
 
 use super::connector::Connector;
@@ -11,6 +14,7 @@ use super::packet::{
 };
 use crate::chat::Chat;
 use crate::glue::{addRTT, setPlayerName, Button, Event};
+use crate::interface::Scene;
 use crate::utils::new_rng;
 use crate::Context;
 
@@ -20,6 +24,10 @@ extern "C" {
 
     #[wasm_bindgen(js_namespace = console)]
     fn error(s: &str);
+}
+
+async fn send(mut channel: UnboundedSender<()>) {
+    let _ = channel.send(()).await;
 }
 
 struct PingRequest {
@@ -35,6 +43,7 @@ pub struct Client {
     queue: Vec<ChessPacket>,
     ping: Option<PingRequest>,
     rng: SmallRng,
+    killer: Option<UnboundedSender<()>>,
 }
 
 impl Client {
@@ -47,6 +56,7 @@ impl Client {
             queue: vec![],
             ping: None,
             rng: new_rng(),
+            killer: None,
         }
     }
 
@@ -55,6 +65,12 @@ impl Client {
             Some(c) => c.send(packet.write()),
             None => self.queue.push(packet),
         };
+    }
+
+    fn kill(&mut self) {
+        if let Some(channel) = self.killer.take() {
+            spawn_local(send(channel));
+        }
     }
 
     fn new_conn(&self, is_host: bool) -> Connector {
@@ -87,12 +103,12 @@ impl Client {
         }));
 
         let ctx = self.ctx.clone();
-        net.set_onmessage(Box::new(move |conn, data| {
+        net.set_onmessage(Box::new(move |_, data| {
             let packet = match ChessPacket::read(data) {
                 Ok(p) => p,
                 Err(e) => {
                     error(&e.to_string());
-                    conn.close();
+                    ctx.handle(Event::Disconnected);
                     return;
                 }
             };
@@ -113,7 +129,7 @@ impl Client {
             ChessPacket::Start(_) => {
                 if self.is_host {
                     error("guest can't start match.");
-                    conn.close();
+                    self.ctx.handle(Event::Disconnected);
                     return;
                 }
 
@@ -160,7 +176,7 @@ impl Client {
             ChessPacket::SetBoard(p) => {
                 if self.is_host {
                     error("guest can't load board");
-                    conn.close();
+                    self.ctx.handle(Event::Disconnected);
                     return;
                 }
 
@@ -169,7 +185,7 @@ impl Client {
             ChessPacket::SetSettings(p) => {
                 if self.is_host {
                     error("guest can't set settings");
-                    conn.close();
+                    self.ctx.handle(Event::Disconnected);
                     return;
                 }
 
@@ -199,11 +215,25 @@ impl Client {
             }
             Event::JoinRoom(code) => {
                 self.is_host = false;
-                self.new_conn(false).start_as_guest(code.to_owned());
+                self.kill();
+                let channel = self.new_conn(false).start_as_guest(code.to_owned());
+                self.killer = Some(channel);
+            }
+            Event::MenuHidden(menu) => {
+                let menu: i8 = (*menu) as i8;
+                let menu: Scene = menu.into();
+                if menu == Scene::Settings {
+                    self.kill();
+                }
+            }
+            Event::GameButtonClick(Button::LeaveRoom) => {
+                self.kill();
             }
             Event::CreateRoom => {
                 self.is_host = true;
-                self.new_conn(true).start_as_host();
+                self.kill();
+                let channel = self.new_conn(true).start_as_host();
+                self.killer = Some(channel);
             }
             Event::Connected(conn) => {
                 self.conn = Some(conn.clone());
@@ -229,6 +259,7 @@ impl Client {
                 }
             }
             Event::Disconnected => {
+                self.kill();
                 if let Some(conn) = self.conn.take() {
                     conn.close();
                 }

@@ -11,7 +11,7 @@ use crate::{
 use names::new_name;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-enum Scene {
+pub enum Scene {
     Loading,
     Canvas,
     Gamemode,
