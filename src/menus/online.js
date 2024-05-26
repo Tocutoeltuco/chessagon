@@ -11,6 +11,20 @@ const createSpinner = createBtn.querySelector(".spinner-border");
 const backBtn = menu.querySelector(".btn-secondary");
 let timeout;
 
+const params = new URLSearchParams(location.search);
+
+let readCode = false;
+menu.addEventListener("show.bs.modal", () => {
+  if (readCode) return;
+  readCode = true;
+
+  const code = params.get("code");
+  if (!code) return;
+
+  codeInput.value = code;
+  joinForm.requestSubmit();
+});
+
 joinForm.addEventListener("submit", (evt) => {
   evt.preventDefault();
   if (joinBtn.disabled) return;
