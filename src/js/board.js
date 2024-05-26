@@ -1,9 +1,11 @@
 import { Color, EffectsAsset, Layer, Piece, PieceKind, Shape } from "./layer";
 import { assets, colors } from "./loader";
 import { ctx } from "./state";
+import { Timers } from "./timer";
 
 export class Board {
   constructor() {
+    this.timers = new Timers();
     this.main = new Layer({
       shape: Shape.HEX,
       colors: colors.main.length,
@@ -34,9 +36,8 @@ export class Board {
 
     this.resize();
 
-    this.main.onClick = (q, r) => {
-      ctx.hexClicked(q, r);
-    };
+    this.timers.onExpired = () => ctx.timerExpired();
+    this.main.onClick = (q, r) => ctx.hexClicked(q, r);
     this.promotion.onClick = (q, r) => {
       this.promoting = null;
       for (const piece of this.promotion.pieceIterator()) {
@@ -48,6 +49,15 @@ export class Board {
     };
   }
 
+  reloadPromotionPrompt() {
+    if (!this.promoting) return;
+    this.showPromotionPrompt(
+      this.promoting.color,
+      this.promoting.q,
+      this.promoting.r,
+    );
+  }
+
   resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -56,17 +66,22 @@ export class Board {
     this.main.resize(radius);
     this.main.move((w - this.main.width) / 2, (h - this.main.height) / 2);
     this.promotion.resize(radius);
-    if (this.promoting) {
-      this.showPromotionPrompt(
-        this.promoting.color,
-        this.promoting.q,
-        this.promoting.r,
-      );
-    }
+    this.reloadPromotionPrompt();
+  }
+
+  hideTimers() {
+    this.timers.hidden = true;
+  }
+
+  setTimers(light, dark, active) {
+    this.timers.hidden = false;
+    this.timers.setState(light, dark, active);
   }
 
   flip(state) {
     this.main.flipped = state;
+    this.timers.flipped = state;
+    this.reloadPromotionPrompt();
   }
 
   /**
@@ -164,6 +179,7 @@ export class Board {
    * @param {CanvasRenderingContext2D} ctx
    */
   render(ctx) {
+    this.timers.render(ctx, 0, 0, window.innerWidth, window.innerHeight);
     this.main.render(ctx);
 
     if (!this.promoting) {
