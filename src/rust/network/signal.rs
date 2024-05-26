@@ -53,6 +53,10 @@ where
     let promise = window.fetch_with_request(&req);
     let resp = JsFuture::from(promise).await?;
     let resp: Response = resp.into();
+    if resp.status() != 200 {
+        return Err(JsValue::from_str("signal process error"));
+    }
+
     let body = JsFuture::from(resp.text()?).await?;
     let body = body.as_string().unwrap();
 
