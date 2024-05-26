@@ -8,6 +8,7 @@ use super::piece::Color;
 #[derive(Debug)]
 pub struct Board {
     pub pieces: Vec<Piece>,
+    pub passant: Option<(u8, u8, u8)>,
 }
 
 macro_rules! add_piece {
@@ -24,7 +25,10 @@ macro_rules! add_piece {
 
 impl Board {
     pub fn new() -> Self {
-        Board { pieces: vec![] }
+        Board {
+            pieces: vec![],
+            passant: None,
+        }
     }
 
     pub fn load_default(&mut self) {
@@ -126,13 +130,13 @@ impl Board {
     }
 
     pub fn can_move(&self, piece: &Piece, q: u8, r: u8) -> bool {
-        MovementIterator::new(&self.pieces, piece)
+        MovementIterator::new(&self.pieces, piece, self.passant)
             .filter(self.avoid_checks(piece))
             .any(|pos| pos.0 == q && pos.1 == r)
     }
 
     pub fn available_moves(&self, piece: &Piece) -> Vec<(u8, u8)> {
-        MovementIterator::new(&self.pieces, piece)
+        MovementIterator::new(&self.pieces, piece, self.passant)
             .filter(self.avoid_checks(piece))
             .map(|pos| (pos.0, pos.1))
             .collect()
@@ -140,12 +144,30 @@ impl Board {
 
     pub fn move_piece(&mut self, from: (u8, u8), to: (u8, u8)) -> Vec<u16> {
         let mut packet = vec![];
-        if let Some(piece) = self.get_at_mut(to.0, to.1) {
+        let capture = match self
+            .passant
+            .take()
+            .filter(|(_, q, r)| *q == to.0 && *r == to.1)
+        {
+            Some((idx, _, _)) => self.get_piece_mut(idx),
+            None => self.get_at_mut(to.0, to.1),
+        };
+        if let Some(piece) = capture {
             packet.push(piece.movement(0, 0));
         }
 
         let piece = self.get_at_mut(from.0, from.1).unwrap();
         packet.push(piece.movement(to.0, to.1));
+
+        if piece.kind == PieceKind::Pawn {
+            let r = from.1 as i8;
+            let dist = r - (to.1 as i8);
+            if dist.abs() == 2 {
+                let r = r - dist / 2;
+                let r: u8 = r.try_into().unwrap();
+                self.passant = Some((piece.idx, from.0, r));
+            }
+        }
         packet
     }
 

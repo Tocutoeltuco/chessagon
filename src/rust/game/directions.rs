@@ -204,16 +204,24 @@ pub struct MovementIterator<'a> {
     color: Color,
     only_pieces: bool,
     extra: DirectionIterator,
+    passant: Option<(u8, u8)>,
 }
 
 impl<'a> MovementIterator<'a> {
-    pub fn new(pieces: &'a Vec<Piece>, piece: &Piece) -> Self {
+    pub fn new(pieces: &'a Vec<Piece>, piece: &Piece, passant: Option<(u8, u8, u8)>) -> Self {
         let pawn = piece.kind == PieceKind::Pawn;
         let extra = if pawn {
             DirectionIterator::pawn_capture(piece.q, piece.r, piece.color)
         } else {
             DirectionIterator::new(0, 0, vec![])
         };
+
+        let passant = passant
+            .map(|(idx, q, r)| (pieces.get(idx as usize), q, r))
+            .filter(|(pass, _, _)| pass.is_some())
+            .map(|(pass, q, r)| (pass.unwrap(), q, r))
+            .filter(|(pass, _, _)| pass.color != piece.color)
+            .map(|(_, q, r)| (q, r));
 
         MovementIterator {
             pieces,
@@ -222,6 +230,7 @@ impl<'a> MovementIterator<'a> {
             color: piece.color,
             only_pieces: false,
             extra,
+            passant,
         }
     }
 
@@ -233,6 +242,7 @@ impl<'a> MovementIterator<'a> {
             color,
             only_pieces: true,
             extra: DirectionIterator::new(0, 0, vec![]),
+            passant: None,
         }
     }
 
@@ -248,6 +258,12 @@ impl<'a> Iterator for MovementIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(pos) = self.extra.next() {
+            if let Some((q, r)) = self.passant {
+                if q == pos.0 && r == pos.1 {
+                    return Some(pos);
+                }
+            }
+
             if let Some(piece) = self.get_at(pos.0, pos.1) {
                 if piece.color != self.color {
                     return Some(pos);
