@@ -12,7 +12,7 @@ menu.addEventListener("show.bs.modal", (evt) => {
 
   if (location.search !== "") {
     // Replace after first modal shows up
-    history.replaceState(null, "", "/");
+    history.replaceState(null, "", location.pathname);
   }
   if (!params.get("code")) return;
 
