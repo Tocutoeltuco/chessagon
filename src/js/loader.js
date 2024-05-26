@@ -7,7 +7,7 @@ let toResolve = [];
 const border = "#ffffff";
 export const colors = {
   main: ["#e8ab6f", "#ffce9e", "#d18b47"],
-  promotion: ["#e8ab6f", "#ffce9e", "#d18b47"],
+  promotion: ["#387039", "#5db55f", "#abd2ac"],
 };
 const effects = {
   light: "rgba(255, 255, 0, 0.35)",
