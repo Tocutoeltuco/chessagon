@@ -136,8 +136,8 @@ impl InterfacesManager {
             },
             Event::JoinedRoom { code, is_host } => {
                 Chat::join_room(code);
+                joinResponse("success".to_owned());
                 if !is_host {
-                    joinResponse("success".to_owned());
                     self.set_scene(Scene::Canvas);
                 } else {
                     self.set_scene(Scene::Settings);

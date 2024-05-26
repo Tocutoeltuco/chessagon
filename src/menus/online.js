@@ -4,18 +4,22 @@ export const menu = document.getElementById("menu-online");
 const joinForm = menu.querySelector("[data-online=join]");
 const joinBtn = joinForm.querySelector("button");
 const codeInput = joinForm.querySelector("input");
-const spinner = joinBtn.querySelector(".spinner-border");
+const joinSpinner = joinBtn.querySelector(".spinner-border");
 const joinErr = menu.querySelector("[data-online=error]");
 const createBtn = menu.querySelector("[data-online=create]");
+const createSpinner = createBtn.querySelector(".spinner-border");
+const backBtn = menu.querySelector(".btn-secondary");
 let timeout;
 
 joinForm.addEventListener("submit", (evt) => {
   evt.preventDefault();
   if (joinBtn.disabled) return;
 
+  backBtn.disabled = true;
+  createBtn.disabled = true;
   joinBtn.disabled = true;
   joinErr.hidden = true;
-  spinner.hidden = false;
+  joinSpinner.hidden = false;
 
   clearTimeout(timeout);
   timeout = setTimeout(() => joinResponse("timeout"), 15000);
@@ -25,6 +29,18 @@ joinForm.addEventListener("submit", (evt) => {
 });
 
 createBtn.addEventListener("click", () => {
+  evt.preventDefault();
+  if (createBtn.disabled) return;
+
+  backBtn.disabled = true;
+  createBtn.disabled = true;
+  joinBtn.disabled = true;
+  joinErr.hidden = true;
+  createSpinner.hidden = false;
+
+  clearTimeout(timeout);
+  timeout = setTimeout(() => joinResponse("timeout"), 15000);
+
   evtTarget.dispatchEvent(new Event("chess.create"));
 });
 
@@ -32,9 +48,12 @@ createBtn.addEventListener("click", () => {
  * @param {"success" | string} resp
  */
 export const joinResponse = (resp) => {
+  backBtn.disabled = false;
+  createBtn.disabled = false;
   joinBtn.disabled = false;
   joinErr.hidden = resp === "success";
-  spinner.hidden = true;
+  joinSpinner.hidden = true;
+  createSpinner.hidden = true;
 
   clearTimeout(timeout);
 
