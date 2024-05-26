@@ -95,6 +95,11 @@ export class Layer {
      * @type {{q: number, r: number, effects: string[]}[]}
      */
     this.highlight = [];
+
+    this.updated = new Uint8Array(this.size * this.size);
+    this.nextUpdate = new Uint8Array(this.size * this.size);
+    this.fullUpdate = true;
+    this.nextFullUpdate = false;
   }
 
   getAppropriateRadius(width, height) {
@@ -122,6 +127,9 @@ export class Layer {
       const middle = Math.floor(this.size / 2);
       this.yOffset = (SQRT / 2) * middle * hexRadius + 4;
     }
+
+    this.fullUpdate = true;
+    this.nextFullUpdate = true;
   }
 
   /**
@@ -131,6 +139,25 @@ export class Layer {
   move(x, y) {
     this.x = x;
     this.y = y;
+    this.fullUpdate = true;
+    this.nextFullUpdate = true;
+  }
+
+  flip(state) {
+    if (this.flipped === state) return;
+    this.flipped = state;
+    this.fullUpdate = true;
+    this.nextFullUpdate = true;
+  }
+
+  shouldUpdate(q, r) {
+    if (this.fullUpdate) return true;
+
+    return this.updated[q * this.size + r] === 1;
+  }
+
+  markUpdate(q, r) {
+    this.nextUpdate[q * this.size + r] = 1;
   }
 
   _flipX(x) {
@@ -208,10 +235,8 @@ export class Layer {
   *hexIterator() {
     for (let q = 0; q < this.size; q++) {
       for (let r = 0; r < this.size; r++) {
-        if (!this.isInBounds(q, r)) {
-          continue;
-        }
-
+        if (!this.shouldUpdate(q, r)) continue;
+        if (!this.isInBounds(q, r)) continue;
         yield [q, r];
       }
     }
@@ -250,13 +275,19 @@ export class Layer {
     }
   }
 
+  *highlightIterator() {
+    for (let i = 0; i < this.highlight.length; i++) {
+      const highlight = this.highlight[i];
+      if (!this.shouldUpdate(highlight.q, highlight.r)) continue;
+      yield highlight;
+    }
+  }
+
   *pieceIterator() {
     for (let i = 0; i < this.pieces.length; i++) {
       const piece = this.pieces[i];
-      if (!this.isInBounds(piece.q, piece.r)) {
-        continue;
-      }
-
+      if (!this.shouldUpdate(piece.q, piece.r)) continue;
+      if (!this.isInBounds(piece.q, piece.r)) continue;
       yield piece;
     }
   }
@@ -276,6 +307,7 @@ export class Layer {
     if (!this.isInBounds(q, r)) {
       return;
     }
+    this.markUpdate(q, r);
 
     let effect;
     if (mouse.state === 0) {
@@ -307,7 +339,7 @@ export class Layer {
   render(ctx) {
     const diam = this.hexRadius * 2;
 
-    if (this.borderSize) {
+    if (this.borderSize && this.fullUpdate) {
       const asset = this.assets.get(`hex_border`);
       const radius = this.hexRadius + this.borderSize;
       const diameter = radius * 2;
@@ -331,14 +363,12 @@ export class Layer {
       );
     }
 
-    for (let i = 0; i < this.highlight.length; i++) {
-      const highlight = this.highlight[i];
-      const [x, y] = this.getPixel(highlight.q, highlight.r);
+    for (const { q, r, effects } of this.highlightIterator()) {
+      const [x, y] = this.getPixel(q, r);
 
-      for (let j = 0; j < highlight.effects.length; j++) {
-        const effect = highlight.effects[j];
+      for (let j = 0; j < effects.length; j++) {
         ctx.drawImage(
-          this.assets.get(`hex_effect_${effect}`),
+          this.assets.get(`hex_effect_${effects[j]}`),
           x - this.hexRadius,
           y - this.hexRadius,
           diam,
@@ -361,5 +391,12 @@ export class Layer {
         pieceDiam,
       );
     }
+  }
+
+  finishUpdate() {
+    this.fullUpdate = this.nextFullUpdate;
+    this.nextFullUpdate = false;
+    this.updated = this.nextUpdate;
+    this.nextUpdate = new Uint8Array(this.size * this.size);
   }
 }

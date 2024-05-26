@@ -27,7 +27,6 @@ graphs.addField("renderTime", 10, 500, (values) => {
 const render = () => {
   const start = performance.now();
   let ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   board.render(ctx);
 

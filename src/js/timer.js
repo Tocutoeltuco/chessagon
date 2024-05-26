@@ -9,6 +9,8 @@ class Timer {
   constructor() {
     this.count = 0;
     this.activeAt = null;
+    this.updated = true;
+    this.lastTime = null;
   }
 
   get expired() {
@@ -41,6 +43,7 @@ class Timer {
    * @param {boolean} isActive
    */
   update(left, isActive) {
+    this.updated = true;
     this.count = left;
     if (isActive) {
       this.activeAt = performance.now();
@@ -55,8 +58,20 @@ class Timer {
    * @param {number} y
    * @param {number} w
    * @param {number} h
+   * @param {boolean} force
    */
-  render(ctx, x, y, w, h) {
+  render(ctx, x, y, w, h, force) {
+    const left = this.left;
+    if (!force && !this.updated && left == this.lastTime) return;
+    this.lastTime = left;
+    this.updated = false;
+    ctx.clearRect(
+      x - BORDER_SIZE,
+      y - BORDER_SIZE,
+      w + BORDER_SIZE * 2,
+      h + BORDER_SIZE * 2,
+    );
+
     if (this.activeAt !== null) {
       // Draw border
       ctx.fillStyle = BORDER_COLOR;
@@ -75,7 +90,7 @@ class Timer {
     const letterHeight = 12;
     const xOff = (w - letterWidth * 5) / 2;
     const yOff = (h - letterHeight) / 2;
-    if (this.left < DANGER_AT) {
+    if (left < DANGER_AT) {
       ctx.strokeStyle = TIMER_COLOR_DANGER;
     } else {
       ctx.strokeStyle = TIMER_COLOR;
@@ -114,8 +129,9 @@ export class Timers {
    * @param {number} y
    * @param {number} w
    * @param {number} h
+   * @param {boolean} force
    */
-  render(ctx, x, y, w, h) {
+  render(ctx, x, y, w, h, force) {
     if (this.hidden) return;
 
     let top = this.dark;
@@ -128,13 +144,21 @@ export class Timers {
     const timerWidth = 50;
     const timerHeight = 20;
 
-    top.render(ctx, x + (w - timerWidth) / 2, y + 20, timerWidth, timerHeight);
+    top.render(
+      ctx,
+      x + (w - timerWidth) / 2,
+      y + 20,
+      timerWidth,
+      timerHeight,
+      force,
+    );
     bot.render(
       ctx,
       x + (w - timerWidth) / 2,
       y + h - 20 - timerHeight,
       timerWidth,
       timerHeight,
+      force,
     );
 
     if (this.sentExpiration) return;

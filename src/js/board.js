@@ -39,6 +39,7 @@ export class Board {
     this.timers.onExpired = () => ctx.timerExpired();
     this.main.onClick = (q, r) => ctx.hexClicked(q, r);
     this.promotion.onClick = (q, r) => {
+      this.main.nextFullUpdate = true;
       this.promoting = null;
       for (const piece of this.promotion.pieceIterator()) {
         if (piece.q === q && piece.r === r) {
@@ -91,6 +92,7 @@ export class Board {
    */
   showPromotionPrompt(color, q, r) {
     this.promoting = { color, q, r };
+    this.promotion.fullUpdate = true;
     for (const piece of this.promotion.pieceIterator()) {
       piece.color = color;
     }
@@ -107,18 +109,19 @@ export class Board {
    * @param {Uint16Array} hexes
    */
   highlight(hexes) {
+    for (let i = 0; i < this.main.highlight.length; i++) {
+      const { q, r } = this.main.highlight[i];
+      this.main.markUpdate(q, r);
+    }
+
     this.main.highlight = [];
     for (let i = 0; i < hexes.length; i++) {
       const flags = hexes[i] >> 8;
-      if (flags === 0) {
-        continue;
-      }
+      if (flags === 0) continue;
 
       const q = (hexes[i] & 0xf0) >> 4;
       const r = hexes[i] & 0xf;
-      if (!this.main.isInBounds(q, r)) {
-        continue;
-      }
+      if (!this.main.isInBounds(q, r)) continue;
 
       const effects = [];
       for (let j = 0; j < EffectsAsset.length; j++) {
@@ -126,7 +129,9 @@ export class Board {
           effects.push(EffectsAsset[j]);
         }
       }
+
       this.main.highlight.push({ q, r, effects });
+      this.main.markUpdate(q, r);
     }
   }
 
@@ -135,6 +140,9 @@ export class Board {
    * @param {Uint16Array} pieces
    */
   setPieces(pieces) {
+    this.main.fullUpdate = true;
+    this.main.nextFullUpdate = true;
+
     this.main.pieces = [];
     for (let i = 0; i < pieces.length; i++) {
       const color = (pieces[i] & 0x800) >> 11;
@@ -156,8 +164,10 @@ export class Board {
       const piece = this.main.pieces[idx];
       if (!piece) continue;
 
+      this.main.markUpdate(piece.q, piece.r);
       piece.q = (pieces[i] & 0xf0) >> 4;
       piece.r = pieces[i] & 0xf;
+      this.main.markUpdate(piece.q, piece.r);
     }
   }
 
@@ -172,6 +182,7 @@ export class Board {
       if (!piece) continue;
 
       piece.kind = pieces[i] >> 8;
+      this.main.markUpdate(piece.q, piece.r);
     }
   }
 
@@ -179,7 +190,11 @@ export class Board {
    * @param {CanvasRenderingContext2D} ctx
    */
   render(ctx) {
-    this.timers.render(ctx, 0, 0, window.innerWidth, window.innerHeight);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    if (this.main.fullUpdate) ctx.clearRect(0, 0, w, h);
+    this.timers.render(ctx, 0, 0, w, h, this.main.fullUpdate);
     this.main.render(ctx);
 
     if (!this.promoting) {
@@ -187,6 +202,9 @@ export class Board {
     } else {
       this.promotion.render(ctx);
       this.promotion.handleMouse(ctx);
+      this.promotion.finishUpdate();
     }
+
+    this.main.finishUpdate();
   }
 }

@@ -7,7 +7,9 @@
  * @param {{min?: number, max?: number} | undefined} opt
  */
 export const drawGraph = (ctx, x, y, title, data, opt) => {
-  ctx.font = "10px sans-serif";
+  ctx.clearRect(x - 20, y - 10, 200, 70);
+
+  ctx.font = "normal normal 10px sans-serif";
   ctx.textBaseline = "alphabetic";
   ctx.strokeStyle = "#ffffff";
   ctx.strokeText(title, x, y);
