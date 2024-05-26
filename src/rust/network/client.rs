@@ -227,7 +227,7 @@ impl Client {
                 }
             }
             Event::GameButtonClick(Button::LeaveRoom) => {
-                self.kill();
+                self.ctx.handle(Event::Disconnected);
             }
             Event::CreateRoom => {
                 self.is_host = true;
@@ -370,9 +370,6 @@ impl Client {
                         .write(),
                     )
                 }
-            }
-            Event::GameButtonClick(Button::LeaveRoom) => {
-                self.ctx.handle(Event::Disconnected);
             }
             _ => {}
         };
