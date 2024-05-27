@@ -42,7 +42,7 @@ joinForm.addEventListener("submit", (evt) => {
   evtTarget.dispatchEvent(new CustomEvent("chess.join", { detail: code }));
 });
 
-createBtn.addEventListener("click", () => {
+createBtn.addEventListener("click", (evt) => {
   evt.preventDefault();
   if (createBtn.disabled) return;
 
