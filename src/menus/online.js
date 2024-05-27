@@ -8,7 +8,6 @@ const joinSpinner = joinBtn.querySelector(".spinner-border");
 const joinErr = menu.querySelector("[data-online=error]");
 const createBtn = menu.querySelector("[data-online=create]");
 const createSpinner = createBtn.querySelector(".spinner-border");
-const backBtn = menu.querySelector(".btn-secondary");
 let timeout;
 
 const params = new URLSearchParams(location.search);
@@ -29,7 +28,6 @@ joinForm.addEventListener("submit", (evt) => {
   evt.preventDefault();
   if (joinBtn.disabled) return;
 
-  backBtn.disabled = true;
   createBtn.disabled = true;
   joinBtn.disabled = true;
   joinErr.hidden = true;
@@ -46,7 +44,6 @@ createBtn.addEventListener("click", (evt) => {
   evt.preventDefault();
   if (createBtn.disabled) return;
 
-  backBtn.disabled = true;
   createBtn.disabled = true;
   joinBtn.disabled = true;
   joinErr.hidden = true;
@@ -62,7 +59,6 @@ createBtn.addEventListener("click", (evt) => {
  * @param {"success" | string} resp
  */
 export const joinResponse = (resp) => {
-  backBtn.disabled = false;
   createBtn.disabled = false;
   joinBtn.disabled = false;
   joinErr.hidden = resp === "success";
