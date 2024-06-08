@@ -326,6 +326,10 @@ impl Controller {
                     return;
                 }
 
+                self.highlight.remove(Effect::Movement);
+                self.highlight
+                    .add(Effect::Movement, [(piece.q, piece.r), *to].iter());
+                self.highlight.send();
                 movePieces(self.board.move_piece((piece.q, piece.r), *to).as_slice());
 
                 if let Some(winner) = self.check_winner() {

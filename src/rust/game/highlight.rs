@@ -5,6 +5,7 @@ use crate::glue::highlight;
 pub enum Effect {
     Light = 0,
     Check = 1,
+    Movement = 2,
 }
 
 pub struct HighlightController([[u8; 11]; 11]);

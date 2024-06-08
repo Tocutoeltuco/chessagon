@@ -14,6 +14,7 @@ const effects = {
   check: "rgba(255, 0, 0, 0.35)",
   hover: "rgba(255, 255, 255, 0.4)",
   click: "rgba(255, 255, 255, 0.5)",
+  movement: "rgba(50, 50, 0, 0.5)",
 };
 
 export const assets = new AssetManager();

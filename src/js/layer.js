@@ -36,7 +36,7 @@ export const PieceKindAsset = {
   [PieceKind.PAWN]: "p",
 };
 
-export const EffectsAsset = ["light", "check"];
+export const EffectsAsset = ["light", "check", "movement"];
 
 /**
  * @readonly
