@@ -262,6 +262,12 @@ impl Controller {
 
                 // Is there a selected piece?
                 if let Some(from) = self.selected_hex.take() {
+                    if from.0 == *q && from.1 == *r {
+                        // Unselect piece
+                        self.highlight.send();
+                        return;
+                    }
+
                     let piece = self.board.get_at(from.0, from.1).unwrap();
                     if self.board.can_move(piece, *q, *r) {
                         // Move it if we can
