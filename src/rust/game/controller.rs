@@ -284,6 +284,7 @@ impl Controller {
                     if piece.color == self.color {
                         let moves = self.board.available_moves(piece);
                         self.highlight.add(Effect::Light, moves.iter());
+                        self.highlight.add(Effect::Light, [(*q, *r)].iter());
                         self.selected_hex = Some((*q, *r));
                     }
                 }
