@@ -20,6 +20,8 @@ pub enum Signal {
     ConnectAt(SystemTime),
     // When to poll next
     NextPoll(SystemTime),
+    // Signal service
+    SetService(String),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -85,6 +87,7 @@ pub struct SignalClient {
     next_poll: Instant,
     sent_all_ice: bool,
     recv_all_ice: bool,
+    sent_service: bool,
 }
 
 impl SignalClient {
@@ -100,6 +103,7 @@ impl SignalClient {
             next_poll: Instant::now(),
             sent_all_ice: false,
             recv_all_ice: false,
+            sent_service: false,
         }
     }
 
@@ -126,6 +130,7 @@ impl SignalClient {
                     let d = d.duration_since(SystemTime::now()).unwrap_or_default();
                     self.next_poll = Instant::now() + d;
                 }
+                Signal::SetService(_) => {}
             };
         }
     }
@@ -157,7 +162,7 @@ impl SignalClient {
         };
 
         // Move all values from queue
-        let signals: Vec<_> = self.signal_queue.drain(0..).collect();
+        let mut signals: Vec<_> = self.signal_queue.drain(0..).collect();
         if signals
             .iter()
             .filter_map(|s| match s {
@@ -167,6 +172,10 @@ impl SignalClient {
             .any(|i| i.0.is_empty())
         {
             self.sent_all_ice = true;
+        }
+        if !self.sent_service {
+            signals.push(Signal::SetService("chessagon".to_owned()));
+            self.sent_service = true;
         }
         let signals = poll(&self.url, token, signals).await?;
         self.handle_signals(signals);
